@@ -1,0 +1,25 @@
+<resources>
+    <string name="app_name">RustdroidAdvance</string>
+    <string name="title_activity_emulator">RustdroidAdvance</string>
+    <string name="title_activity_rom_list">Rom Library</string>
+
+    <string name="action_load_rom">Load ROM</string>
+    <string name="action_import_directory">Import Directory</string>
+    <string name="action_settings">Settings</string>
+
+    <string name="submenu_snapshots">Snapshots</string>
+    <string name="action_save_snapshot">Save Snapshot</string>
+    <string name="action_view_snapshot">View Snapshots</string>
+
+    <string name="action_set_screenshot">Set Image</string>
+
+    <string name="action_delete">Delete</string>
+    <string name="action_set_library_image"> Take screenshot for library view </string>
+
+    <string name="title_activity_snapshot">Snapshot Manager</string>
+
+    <string name="color_correction_setting">Apply color correction shader</string>
+    <string name="color_correction_summary">
+        Makes colors look closer to the real GBA LCD screen.
+    </string>
+</resources>
