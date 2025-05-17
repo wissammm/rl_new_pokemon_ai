@@ -1,0 +1,34 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "${workspaceRoot}/pokeemerald_modern.elf",
+            "args": [
+                "target remote ${env:TODAYSIP}:2345"
+            ],
+            "stopAtEntry": true,
+            "cwd": "${workspaceRoot}",
+            "environment": [],
+            "externalConsole": false,
+            "miDebuggerServerAddress": "${env:TODAYSIP}:2345",
+            "debugServerArgs": "${workspaceRoot}/pokeemerald_modern.elf -g",
+            "serverStarted": "started",
+            "preLaunchTask": "${defaultBuildTask}",
+            "logging": {
+                "moduleLoad": true,
+                "trace": true,
+                "engineLogging": true,
+                "programOutput": true,
+                "exceptions": true
+            },
+            "linux": {
+                "MIMode": "gdb",
+                "miDebuggerPath": "/opt/devkitpro/devkitARM/bin/arm-none-eabi-gdb",
+                "debugServerPath": "${workspaceRoot}/mgba.sh"
+            }
+        }
+    ]
+}

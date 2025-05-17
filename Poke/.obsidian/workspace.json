@@ -1,0 +1,167 @@
+{
+  "main": {
+    "id": "1cdb7c314211b7a9",
+    "type": "split",
+    "children": [
+      {
+        "id": "9c22aac611b04850",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "77f8e68ecbb63afe",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "Welcome.md",
+                "mode": "source",
+                "source": false
+              }
+            }
+          },
+          {
+            "id": "beb015f4672fd4bc",
+            "type": "leaf",
+            "state": {
+              "type": "excalidraw",
+              "state": {
+                "file": "First drawing/Drawing 2024-06-05 00.00.00.excalidraw.md"
+              }
+            }
+          }
+        ],
+        "currentTab": 1
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "793b6856fa1dbed5",
+    "type": "split",
+    "children": [
+      {
+        "id": "6a084732fb6ab783",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "237f716f9de2d76b",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "7170cb5fab2022cf",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              }
+            }
+          },
+          {
+            "id": "7e5fcd20aea10068",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {}
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 200
+  },
+  "right": {
+    "id": "66aa7560c00ffc33",
+    "type": "split",
+    "children": [
+      {
+        "id": "e92f334a4ec4a6d9",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5eeb8790f9b30f39",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "First drawing/Drawing 2024-06-05 00.00.00.excalidraw.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "6dd9a8e7b4b4f1da",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "First drawing/Drawing 2024-06-05 00.00.00.excalidraw.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              }
+            }
+          },
+          {
+            "id": "fcc7c1fb7a8a91a6",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true
+              }
+            }
+          },
+          {
+            "id": "5cca8d667e248265",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "First drawing/Drawing 2024-06-05 00.00.00.excalidraw.md"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "obsidian-excalidraw-plugin:Create new drawing": false
+    }
+  },
+  "active": "beb015f4672fd4bc",
+  "lastOpenFiles": [
+    "Welcome.md",
+    "First drawing/Drawing 2024-06-05 00.00.00.excalidraw.md",
+    "First drawing"
+  ]
+}
