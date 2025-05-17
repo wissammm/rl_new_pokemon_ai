@@ -1,0 +1,32 @@
+{
+    "configurations": [
+        {
+            "name": "GBA",
+            "includePath": [
+                "${workspaceRoot}/pokeemerald_ai_rl",
+                "${workspaceRoot}/pokeemerald_ai_rl/include",
+                "${workspaceRoot}/pokeemerald_ai_rl/gflib",
+                "${workspaceRoot}/pokeemerald_ai_rl/tools/agbcc/include"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE",
+                "DEBUG",
+                "DINFO",
+                "_MSC_VER"
+            ],
+            "intelliSenseMode": "gcc-arm",
+            "browse": {
+                "path": [
+                    "${workspaceRoot}/pokeemerald_ai_rl"
+                ],
+                "limitSymbolsToIncludedHeaders": true,
+                "databaseFilename": ""
+            },        
+            "cStandard": "c99",
+            "compilerPath": "/opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc"
+        }
+    ],
+    "version": 4
+}

@@ -1,7 +1,0 @@
-[submodule "pokeemerald/agbcc"]
-    path = pokeemerald/agbcc
-    url = https://github.com/pret/agbcc.git
-
-[submodule "rustboyadvance/external/SDL_GameControllerDB"]
-    path = rustboyadvance/external/SDL_GameControllerDB
-    url = https://github.com/gabomdq/SDL_GameControllerDB.git
