@@ -14,7 +14,8 @@
                 "_UNICODE",
                 "DEBUG",
                 "DINFO",
-                "_MSC_VER"
+                "_MSC_VER",
+                "OBSERVED_DATA"
             ],
             "intelliSenseMode": "gcc-arm",
             "browse": {
@@ -25,7 +26,7 @@
                 "databaseFilename": ""
             },        
             "cStandard": "c99",
-            "compilerPath": "/opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc"
+            "compilerPath": "/opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc",
         }
     ],
     "version": 4

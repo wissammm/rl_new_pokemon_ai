@@ -6,7 +6,14 @@
         "*.inc": "arm",
         "map": "c",
         "format": "c",
-        "map_groups.h": "c"
+        "map_groups.h": "c",
+        "random": "c",
+        "trainers.h": "c",
+        "cable_club.h": "c",
+        "items.h": "c",
+        "pokemon.h": "c",
+        "data_mon_dump.h": "c",
+        "songs.h": "c"
     },
     "terminal.integrated.shell.linux": "/bin/bash"
 }
