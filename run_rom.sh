@@ -15,4 +15,4 @@ cd "$CARGO_PROJECT_PATH" || { echo "Error: Failed to navigate to $CARGO_PROJECT_
 
 # Run the Cargo project with the ROM as argument
 echo "Running: cargo run --release -- ../$ROM_PATH"
-cargo run --release -- "../$ROM_PATH"
+cargo run --release -- --cli "../$ROM_PATH"

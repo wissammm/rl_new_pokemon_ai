@@ -19,7 +19,7 @@ class MapAnalyzer:
         return self.symbols.get(symbol)
     
     
-analyzer = MapAnalyzer('/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.map')
-print(f"gBattleMonForms: {analyzer.get_address('gBattleMonForms')}")
-print(f"Estimated size: {analyzer.get_size('gBattleMonForms')} bytes")
-print("ok")
+# analyzer = MapAnalyzer('/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.map')
+# print(f"actionDone: {analyzer.get_address('actionDone')}")
+# # print(f"Estimated size: {analyzer.get_size('gBattleMonForms')} bytes")
+# print("ok")
