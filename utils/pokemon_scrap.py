@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import re
 
 def parse_pokemon_scrap(path):
@@ -46,5 +47,17 @@ def parse_pokemon_scrap(path):
     df = pd.DataFrame(data)
     return df
 
-df = parse_pokemon_scrap("data/data_scrap_from_mgba")
-print(df.head(20))
+# df = parse_pokemon_scrap("data/data_scrap_from_mgba")
+
+# print(df.head(20))
+
+# output_folder = "data/csv_data"
+# output_file = "pokemon_data.csv"
+
+# os.makedirs(output_folder, exist_ok=True)
+
+# # Save the DataFrame as a CSV file inside the folder
+# output_path = os.path.join(output_folder, output_file)
+# df.to_csv(output_path, index=False)
+
+# print(f"DataFrame saved to {output_path}")

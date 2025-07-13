@@ -7,6 +7,9 @@
             "command": "make",
             "args": [
                 "DINFO=1",
+                "DOBSERVED_DATA=1",
+                "DSKIP_TEXT=1",
+                "DSKIP_GRAPHICS=0",
                 "modern",
                 "-j$(nproc)"
             ],
