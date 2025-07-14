@@ -6,12 +6,17 @@ import pandas as pd
 from typing import Dict, Any, Tuple, Optional, List, Set
 from dataclasses import dataclass
 from enum import Enum
+import rich
+from rich.console import Console
+from rich.table import Table
+import pandas as pd
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import rustboyadvance_py
 import utils.parser
 import utils.pokemon_data
 
+random.seed(124)
 ROM_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.elf"
 BIOS_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/rustboyadvance-ng-for-rl/gba_bios.bin"
 MAP_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.map"
@@ -71,6 +76,8 @@ class BattleCore:
             'stopHandleTurnEnd': int(self.parser.get_address('stopHandleTurnEnd'), 16),
             'monDataPlayer': int(self.parser.get_address('monDataPlayer'), 16),
             'monDataEnemy': int(self.parser.get_address('monDataEnemy'), 16),
+            'playerTeam': int(self.parser.get_address('playerTeam'), 16),
+            'enemyTeam': int(self.parser.get_address('enemyTeam'), 16),
             'legalMoveActionsPlayer': int(self.parser.get_address('legalMoveActionsPlayer'), 16),
             'legalMoveActionsEnemy': int(self.parser.get_address('legalMoveActionsEnemy'), 16),
             'legalSwitchActionsPlayer': int(self.parser.get_address('legalSwitchActionsPlayer'), 16),
@@ -95,6 +102,10 @@ class BattleCore:
             3: TurnType.ENEMY,
             4: TurnType.DONE
         }
+
+    def add_stop_addr(self, addr: int, size: int, read: bool, name: str, stop_id: int):
+        """Add a stop address to the GBA emulator"""
+        self.gba.add_stop_addr(addr, size, read, name, stop_id)
     
     def run_to_next_stop(self) -> int:
         """Run the emulator until we hit a stop condition"""
@@ -113,9 +124,9 @@ class BattleCore:
     def read_team_data(self, agent: str) -> List[int]:
         """Read team data for specified agent"""
         if agent == 'player':
-            return self.gba.read_u32_list(self.addrs['monDataPlayer'], 35 * 6)
+            return self.gba.read_u32_list(self.addrs['monDataPlayer'], 36 * 6)
         elif agent == 'enemy':
-            return self.gba.read_u32_list(self.addrs['monDataEnemy'], 35 * 6)
+            return self.gba.read_u32_list(self.addrs['monDataEnemy'], 36 * 6)
         else:
             raise ValueError(f"Unknown agent: {agent}")
     
@@ -144,9 +155,9 @@ class BattleCore:
     def write_team_data(self, agent: str, data: List[int]):
         """Write team data for specified agent"""
         if agent == 'player':
-            self.gba.write_u32_list(self.addrs['monDataPlayer'], data)
+            self.gba.write_u32_list(self.addrs['playerTeam'], data)
         elif agent == 'enemy':
-            self.gba.write_u32_list(self.addrs['monDataEnemy'], data)
+            self.gba.write_u32_list(self.addrs['enemyTeam'], data)
         else:
             raise ValueError(f"Unknown agent: {agent}")
 
@@ -470,7 +481,92 @@ class PokemonRLCore:
 
             team.extend([random_species['id'], 10] + random_moves)
 
+        print(f"Created random team: {team}")  # Debugging output
         return team
+    
+    def render(self, observations: Dict[str, pd.DataFrame], csv_path: str):
+        """
+        Render the current state of the battle using the rich library.
+
+        Args:
+            observations: Dictionary containing observation DataFrames for 'player' and 'enemy'.
+            csv_path: Path to the CSV file containing Pokémon data.
+        """
+        # Load Pokémon data from the CSV file
+        pokemon_data = pd.read_csv(csv_path)
+
+        # Initialize the rich console
+        console = Console()
+
+        # Create a table with two columns: Player and Enemy
+        table = Table(title="Battle State", show_header=True, header_style="bold magenta")
+        table.add_column("Player", justify="center", style="cyan", no_wrap=True)
+        table.add_column("Enemy", justify="center", style="red", no_wrap=True)
+
+        # Helper function to get Pokémon name by ID
+        def get_pokemon_name(pokemon_id):
+            row = pokemon_data[pokemon_data['id'] == pokemon_id]
+            return row['speciesName'].values[0] if not row.empty else "Unknown"
+
+        # Get the current Pokémon for both player and enemy
+        player_current = observations['player'][observations['player']['isActive'] == 1]
+        enemy_current = observations['enemy'][observations['enemy']['isActive'] == 1]
+
+        # Player's current Pokémon details
+        player_current_details = ""
+        if not player_current.empty:
+            player_mon = player_current.iloc[0]
+            player_name = get_pokemon_name(player_mon['id'])
+            player_moves = player_mon['moves']
+            player_pp = [
+                player_mon['move1_pp'],
+                player_mon['move2_pp'],
+                player_mon['move3_pp'],
+                player_mon['move4_pp'],
+            ]
+            player_current_details = f"[bold]{player_name}[/bold]\n"
+            for move, pp in zip(player_moves, player_pp):
+                player_current_details += f"Move {move}: PP {pp}\n"
+
+        # Enemy's current Pokémon details
+        enemy_current_details = ""
+        if not enemy_current.empty:
+            enemy_mon = enemy_current.iloc[0]
+            enemy_name = get_pokemon_name(enemy_mon['id'])
+            enemy_moves = enemy_mon['moves']
+            enemy_pp = [
+                enemy_mon['move1_pp'],
+                enemy_mon['move2_pp'],
+                enemy_mon['move3_pp'],
+                enemy_mon['move4_pp'],
+            ]
+            enemy_current_details = f"[bold]{enemy_name}[/bold]\n"
+            for move, pp in zip(enemy_moves, enemy_pp):
+                enemy_current_details += f"Move {move}: PP {pp}\n"
+
+        # Add current Pokémon details to the table
+        table.add_row(player_current_details, enemy_current_details)
+
+        # Player's team Pokémon names and HP
+        player_team = observations['player'][observations['player']['isActive'] != 1]
+        player_team_details = ""
+        for _, mon in player_team.iterrows():
+            mon_name = get_pokemon_name(mon['id'])
+            player_team_details += f"{mon_name}: HP {mon['current_hp']}/{mon['max_hp']}\n"
+
+        # Enemy's team Pokémon names and HP
+        enemy_team = observations['enemy'][observations['enemy']['isActive'] != 1]
+        enemy_team_details = ""
+        for _, mon in enemy_team.iterrows():
+            mon_name = get_pokemon_name(mon['id'])
+            enemy_team_details += f"{mon_name}: HP {mon['current_hp']}/{mon['max_hp']}\n"
+
+        # Add team details to the table
+        table.add_row(player_team_details, enemy_team_details)
+
+        # Print the table to the console
+        console.print(table)
+
 
 
 # Example usage
@@ -501,6 +597,8 @@ if __name__ == "__main__":
         
         # Execute step
         observations, rewards, done, info = rl_core.step(actions)
+
+        rl_core.render(observations, POKEMON_CSV_PATH)
         
         print(f"Rewards: {rewards}, Done: {done}")
         

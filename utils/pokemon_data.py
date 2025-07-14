@@ -48,8 +48,8 @@ def to_pandas_team_dump_data(array):
     """Convert a Pokémon team data array to a pandas DataFrame"""
     team_data = []
     for i in range(6): 
-        start = i * 34
-        end = start + 34
+        start = i * 35
+        end = start + 35
         mon_data = {
             'isActive': array[start],
             'id': array[start + 1],
