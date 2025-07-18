@@ -1,3 +1,4 @@
+import random
 import unittest
 import pandas as pd
 import sys
@@ -24,21 +25,10 @@ class TestPokemonRLCore(unittest.TestCase):
         self.assertEqual(turn, TurnType.CREATE_TEAM)
 
     def test_create_team(self):
-                                  #id level move0 move1 move2 move3
-        player_team = [164, 10, 214, 38, 203, 36,
-                                    95, 10, 103, 203, 214, 38, 
-                                    47, 10, 210, 164, 78, 214, 
-                                    59, 10, 245, 207, 34, 129, 
-                                    43, 10, 80, 230, 207, 14,
-                                    367, 10, 223, 164, 102, 8]
+        player_team = self.core._create_random_team(POKEMON_CSV_PATH)
                                     
-        enemy_team = [326, 10, 207, 173, 102, 210,
-                                     200, 10, 173, 195, 111, 212, 
-                                     147, 10, 214, 43, 173, 86,
-                                       366, 10, 8, 227, 214, 210, 
-                                       135, 10, 86, 39, 42, 24, 
-                                       211, 10, 40, 86, 42, 33]
-        
+        enemy_team = self.core._create_random_team(POKEMON_CSV_PATH)
+
         
         turn = self.core.turn_manager.advance_to_next_turn()
         self.assertEqual(turn, TurnType.CREATE_TEAM)
@@ -47,17 +37,21 @@ class TestPokemonRLCore(unittest.TestCase):
         self.core.battle_core.write_team_data('enemy', enemy_team)
 
         addr_player = int(self.core.battle_core.parser.get_address('playerTeam'), 16)
-        read_player_team = self.core.battle_core.gba.read_u32_list(addr_player, 36)
+        read_player_team = self.core.battle_core.gba.read_u32_list(addr_player, 42)
+        print(player_team)
+        print(read_player_team)
+        # self.assertEqual(read_player_team, player_team, "Player team data mismatch")
 
-        addr_enemy = int(self.core.battle_core.parser.get_address('playerTeam'), 16)
-        read_enemy_team = self.core.battle_core.gba.read_u32_list(addr_enemy, 36)
+
+        addr_enemy = int(self.core.battle_core.parser.get_address('enemyTeam'), 16)
+        read_enemy_team = self.core.battle_core.gba.read_u32_list(addr_enemy, 42)
 
         #compare buffer read from gba with player_team
         for i in range(6):
-            start = i * 6
-            self.assertEqual(read_player_team[start], player_team[start])
-            self.assertEqual(read_player_team[start + 1], player_team[start + 1])
-            self.assertEqual(read_player_team[start + 2:start + 6], player_team[start + 2:start + 6])
+            start = i * 7
+            self.assertEqual(read_player_team[start], player_team[start], "Player team ID mismatch at pokemon {i}")
+            self.assertEqual(read_player_team[start + 1], player_team[start + 1], "Player team level mismatch at pokemon {i}")
+            self.assertEqual(read_player_team[start + 2:start + 6], player_team[start + 2:start + 6], "Player team moves mismatch at pokemon {i}")
 
 
         self.core.battle_core.clear_stop_condition(turn)
@@ -69,32 +63,130 @@ class TestPokemonRLCore(unittest.TestCase):
 
         playerdf = utils.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
         enemydf = utils.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
-        
+
         for i in range(6):
-            start = i * 6
+            start = i * 7
             self.assertEqual(playerdf.iloc[i]['id'], player_team[start])
             self.assertEqual(playerdf.iloc[i]['level'], player_team[start + 1])
             self.assertEqual(playerdf.iloc[i]['moves'], player_team[start + 2:start + 6])
 
         # Compare enemy team
         for i in range(6):
-            start = i * 6
+            start = i * 7
             self.assertEqual(enemydf.iloc[i]['id'], enemy_team[start])
-            self.assertEqual(enemydf.iloc[i]['level'], enemy_team[start + 1])
+            self.assertEqual(enemydf.iloc[i]['level'], enemy_team[start + 1]) 
             self.assertEqual(enemydf.iloc[i]['moves'], enemy_team[start + 2:start + 6])
 
     
-    def test_use_move(self):
-        pass
+    def test_enemy_lost(self):
+        # pokachu lvl 99 using shock wave (86) with 100% accyracy
+        player_team = [
+            25, 99, 84, 84, 84, 84, 100,  # Pikachu with moves and 100% HP
+            0, 10, 0, 0, 0, 0, 0,        # Empty slots
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0
+        ]
+        enemy_team = [
+            7, 10, 45, 45, 45, 45, 10,  # Squirtle use move 150 wich does nothing 10% HP
+            0, 10, 0, 0, 0, 0, 0,        # Empty slots
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0
+        ]
+
+        # This test case Squirtle have 100% chance to death
+        turn = self.core.turn_manager.advance_to_next_turn()
+        self.assertEqual(turn, TurnType.CREATE_TEAM)
+
+        self.core.battle_core.write_team_data('player', player_team)
+        self.core.battle_core.write_team_data('enemy', enemy_team)
+
+        self.core.battle_core.clear_stop_condition(turn)
+        # Advance to the first turn
+        turn = self.core.turn_manager.advance_to_next_turn()
+        self.assertEqual(turn, TurnType.GENERAL)
+
+        # Perform a move (e.g., player uses the first move)
+        player_action = 0
+        enemy_action = 0
+        actions = {
+            'player': player_action,
+            'enemy': enemy_action
+        }
+
+        self.core.action_manager.write_actions(turn,actions)
+        self.core.battle_core.clear_stop_condition(turn)
+
+        turn = self.core.turn_manager.advance_to_next_turn()
+        enemy_team_dump_data = self.core.battle_core.read_team_data('enemy')
+        enemydf = utils.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
+        #Print Hp of enemy POkemon active
+        active_enemy = enemydf[enemydf['isActive'] == 1]
+        enemy_updated_hp = active_enemy.iloc[0]['current_hp']
+        print(f"Enemy updated HP: {enemy_updated_hp}")
+
+        self.assertEqual(turn, TurnType.DONE)
+        # self.assertLess(enemy_updated_hp, enemy_initial_hp, "Enemy HP should decrease after a move is used.")
 
     def test_switch_pokemon(self):
-        pass
+        player_team = [
+            25, 1, 150, 150, 150, 150, 100,  # Pikachu  use move 150 wich does nothing
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0,
+            0, 10, 0, 0, 0, 0, 0
+        ]
+        enemy_team = [
+            7, 99, 74, 53, 54, 55, 10,  # Squirtle use move 74 wich does nothing 10% HP
+            8, 99, 4, 5, 9, 23, 11,
+            12, 99, 4, 5, 9, 23, 11,
+            12, 10, 0, 0, 0, 0, 10,
+            12, 10, 0, 0, 0, 0, 10,
+            12, 10, 0, 0, 0, 0, 10
+        ]
+
+        # This test case Squirtle have 100% chance to death
+        turn = self.core.turn_manager.advance_to_next_turn()
+        self.assertEqual(turn, TurnType.CREATE_TEAM)
+
+        self.core.battle_core.write_team_data('player', player_team)
+        self.core.battle_core.write_team_data('enemy', enemy_team)
+
+        self.core.battle_core.clear_stop_condition(turn)
+        # Advance to the first turn
+        turn = self.core.turn_manager.advance_to_next_turn()
+        self.assertEqual(turn, TurnType.GENERAL)
+
+        player_action = 0
+        enemy_action = 5
+        actions = {
+            'player': player_action,
+            'enemy': enemy_action
+        }
+
+        self.core.action_manager.write_actions(turn,actions)
+        self.core.battle_core.clear_stop_condition(turn)
+        turn = self.core.turn_manager.advance_to_next_turn()
+
+        player_team_dump_data = self.core.battle_core.read_team_data('player')
+        enemy_team_dump_data = self.core.battle_core.read_team_data('enemy')
+        self.assertEqual(turn, TurnType.GENERAL)
+
+        playerdf = utils.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
+        enemydf = utils.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
+        active_enemy = enemydf[enemydf['isActive'] == 1]
+        print(enemydf)
+        self.assertEqual(len(active_enemy), 1, "There should be exactly one active Pokémon in the enemy team.")
+        self.assertEqual(active_enemy.iloc[0]['id'], 8, "The active Pokémon in the enemy team should have ID 8.")
 
     def test_switch_pokemon_when_one_fainted(self):
         pass
 
-    def test_player_lost(self):
-        pass
+
 
 class TestGbaFunctions(unittest.TestCase):
     def setUp(self):
@@ -141,7 +233,8 @@ class TestGbaFunctions(unittest.TestCase):
         id = self.gba.run_to_next_stop(MAIN_STEPS)
         while id != 12:
             id = self.gba.run_to_next_stop(MAIN_STEPS)
-        data = [1, 2, 3, 4, 5, 6]
+        data = [random.randint(0, 300) for _ in range(42)]
+    
         self.gba.write_u32_list(addr, data)
         result = self.gba.read_u32_list(addr, len(data))
         self.assertEqual(result, data)

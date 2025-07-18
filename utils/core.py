@@ -52,11 +52,11 @@ class BattleCore:
     Handles GBA emulator, memory operations, and stop conditions.
     """
     
-    def __init__(self, rom_path: str, bios_path: str, map_path: str, max_steps: int = 32000):
+    def __init__(self, rom_path: str, bios_path: str, map_path: str, steps: int = 32000):
         self.rom_path = rom_path
         self.bios_path = bios_path
         self.map_path = map_path
-        self.max_steps = max_steps
+        self.steps = steps
         
         # Initialize parser and GBA emulator
         self.parser = utils.parser.MapAnalyzer(map_path)
@@ -107,13 +107,16 @@ class BattleCore:
         """Add a stop address to the GBA emulator"""
         self.gba.add_stop_addr(addr, size, read, name, stop_id)
     
-    def run_to_next_stop(self) -> int:
+    def run_to_next_stop(self, max_steps =350000) -> int:
         """Run the emulator until we hit a stop condition"""
-        stop_id = self.gba.run_to_next_stop(self.max_steps)
+        stop_id = self.gba.run_to_next_stop(self.steps)
         
         # Keep running if we didn't hit a stop
         while stop_id == -1:
-            stop_id = self.gba.run_to_next_stop(self.max_steps)
+            max_steps -= 1
+            if max_steps <= 0:
+                raise TimeoutError("Reached maximum steps without hitting a stop condition")
+            stop_id = self.gba.run_to_next_stop(self.steps)
         
         return stop_id
     
@@ -124,9 +127,9 @@ class BattleCore:
     def read_team_data(self, agent: str) -> List[int]:
         """Read team data for specified agent"""
         if agent == 'player':
-            return self.gba.read_u32_list(self.addrs['monDataPlayer'], 36 * 6)
+            return self.gba.read_u32_list(self.addrs['monDataPlayer'], 35 * 6)
         elif agent == 'enemy':
-            return self.gba.read_u32_list(self.addrs['monDataEnemy'], 36 * 6)
+            return self.gba.read_u32_list(self.addrs['monDataEnemy'], 35 * 6)
         else:
             raise ValueError(f"Unknown agent: {agent}")
     
@@ -144,6 +147,7 @@ class BattleCore:
         if turn_type == TurnType.CREATE_TEAM:
             self.gba.write_u16(self.addrs['stopHandleTurnCreateTeam'], 0)
         elif turn_type == TurnType.GENERAL:
+            print("Turn = general ")
             self.gba.write_u16(self.addrs['stopHandleTurn'], 0)
         elif turn_type == TurnType.PLAYER:
             self.gba.write_u16(self.addrs['stopHandleTurnPlayer'], 0)
@@ -217,9 +221,20 @@ class ActionManager:
                 self.battle_core.write_action('enemy', actions['enemy'])
     
     def get_legal_actions(self, agent: str) -> List[int]:
-        """Get legal actions for agent (placeholder for future implementation)"""
-        # For now, return all possible actions
-        return list(range(self.action_space_size))
+        if agent == 'player':
+            legal_moves = self.battle_core.gba.read_u16_list(self.battle_core.addrs['legalMoveActionsPlayer'], 4)
+            legal_switches = self.battle_core.gba.read_u16_list(self.battle_core.addrs['legalSwitchActionsPlayer'], 6)
+        elif agent == 'enemy':
+            legal_moves = self.battle_core.gba.read_u16_list(self.battle_core.addrs['legalMoveActionsEnemy'], 4)
+            legal_switches = self.battle_core.gba.read_u16_list(self.battle_core.addrs['legalSwitchActionsEnemy'], 6)
+        else:
+            raise ValueError(f"Unknown agent: {agent}")
+        
+        valid_moves = [i for i, move in enumerate(legal_moves) if move]
+        valid_switches = [i + 4 for i, switch in enumerate(legal_switches) if switch]  # Offset switches by 4
+        
+        # Combine moves and switches into a single list of legal actions
+        return valid_moves + valid_switches
 
 
 class TurnManager:
@@ -479,7 +494,7 @@ class PokemonRLCore:
             while len(random_moves) < 4:
                 random_moves.append(0)
 
-            team.extend([random_species['id'], 10] + random_moves)
+            team.extend([random_species['id'], 10] + random_moves + [100])
 
         print(f"Created random team: {team}")  # Debugging output
         return team
@@ -593,7 +608,11 @@ if __name__ == "__main__":
         # Generate random actions for required agents
         actions = {}
         for agent in required_agents:
-            actions[agent] = random.randint(0, 3)
+            legal_actions = rl_core.action_manager.get_legal_actions(agent)
+            if legal_actions:
+                actions[agent] = random.choice(legal_actions)  # Choose a random legal action
+            else:
+                print(f"No legal actions available for {agent}")
         
         # Execute step
         observations, rewards, done, info = rl_core.step(actions)
