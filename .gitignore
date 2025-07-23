@@ -1,0 +1,12 @@
+# no .logs files
+*.log
+# no .pyc files
+*.pyc
+# no .pyo files
+*.pyo
+# no .pyd files
+*.pyd
+# no .pdb files
+*.pdb
+# no .swp files
+*.swp

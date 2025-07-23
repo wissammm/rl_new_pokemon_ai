@@ -107,7 +107,7 @@ class BattleCore:
         """Add a stop address to the GBA emulator"""
         self.gba.add_stop_addr(addr, size, read, name, stop_id)
     
-    def run_to_next_stop(self, max_steps =350000) -> int:
+    def run_to_next_stop(self, max_steps = 2000000) -> int:
         """Run the emulator until we hit a stop condition"""
         stop_id = self.gba.run_to_next_stop(self.steps)
         
@@ -164,6 +164,22 @@ class BattleCore:
             self.gba.write_u32_list(self.addrs['enemyTeam'], data)
         else:
             raise ValueError(f"Unknown agent: {agent}")
+    
+    def save_savestate(self, name: str) -> str:
+        """Save the current state of the emulator"""
+        save_path = f"{name}.sav"
+        self.gba.save_savestate(save_path)
+        return save_path
+    
+    def load_savestate(self, name: str) -> bool:
+        """Load a saved state"""
+        save_path = f"{name}.sav"
+        if os.path.exists(save_path):
+            self.gba.load_savestate(save_path,BIOS_PATH, ROM_PATH)
+            return True
+        else:
+            print(f"Save state {name} does not exist.")
+            return False
 
 
 class ObservationManager:
@@ -495,8 +511,8 @@ class PokemonRLCore:
                 random_moves.append(0)
 
             team.extend([random_species['id'], 10] + random_moves + [100])
-
-        print(f"Created random team: {team}")  # Debugging output
+        
+        print(f"Created random team: {team}")
         return team
     
     def render(self, observations: Dict[str, pd.DataFrame], csv_path: str):
@@ -595,10 +611,9 @@ if __name__ == "__main__":
     # Reset environment
     observations = rl_core.reset()
     
-    print(rl_core._create_random_team(POKEMON_CSV_PATH))
 
     # Example game loop
-    for step in range(100):
+    for step in range(300):
         # Get current turn info
         current_turn = rl_core.get_current_turn_type()
         required_agents = rl_core.get_required_agents()
