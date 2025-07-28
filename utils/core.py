@@ -21,6 +21,7 @@ ROM_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokee
 BIOS_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/rustboyadvance-ng-for-rl/gba_bios.bin"
 MAP_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.map"
 POKEMON_CSV_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/data/csv_data/pokemon_data.csv"
+SAVE_PATH  = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/savestate"
 
 class TurnType(Enum):
     """Enumeration for different turn types"""
@@ -57,7 +58,6 @@ class BattleCore:
         self.bios_path = bios_path
         self.map_path = map_path
         self.steps = steps
-        
         # Initialize parser and GBA emulator
         self.parser = utils.parser.MapAnalyzer(map_path)
         self.gba = rustboyadvance_py.RustGba()
@@ -167,18 +167,19 @@ class BattleCore:
     
     def save_savestate(self, name: str) -> str:
         """Save the current state of the emulator"""
-        save_path = f"{name}.sav"
+        os.makedirs(SAVE_PATH, exist_ok=True)
+        save_path = os.path.join(SAVE_PATH, f"{name}.savestate")
         self.gba.save_savestate(save_path)
         return save_path
-    
+
     def load_savestate(self, name: str) -> bool:
         """Load a saved state"""
-        save_path = f"{name}.sav"
+        save_path = os.path.join(SAVE_PATH, f"{name}.savestate")
         if os.path.exists(save_path):
-            self.gba.load_savestate(save_path,BIOS_PATH, ROM_PATH)
+            self.gba.load_savestate(save_path, BIOS_PATH, ROM_PATH)
             return True
         else:
-            print(f"Save state {name} does not exist.")
+            print(f"Save state {save_path} does not exist.")
             return False
 
 
@@ -206,7 +207,6 @@ class ObservationManager:
     
     def get_observation_space_size(self) -> int:
         """Get the size of the observation space (to be implemented)"""
-        # This will be implemented later based on how you want to flatten the DataFrame
         return None
 
 
@@ -294,7 +294,7 @@ class TurnManager:
         self.state.current_turn = self.battle_core.get_turn_type(stop_id)
         self.state.waiting_for_action = True
         self.state.current_step += 1
-        
+                
         return self.state.current_turn
     
     def _get_required_agents(self) -> List[str]:
@@ -383,7 +383,7 @@ class PokemonRLCore:
     This is the primary interface for the RL environment.
     """
     
-    def __init__(self, rom_path: str, bios_path: str, map_path: str, max_steps: int = 32000):
+    def __init__(self, rom_path: str, bios_path: str, map_path: str, max_steps: int = 200000):
         # Initialize core components
         self.battle_core = BattleCore(rom_path, bios_path, map_path, max_steps)
         self.observation_manager = ObservationManager(self.battle_core)
@@ -495,23 +495,25 @@ class PokemonRLCore:
             List[int]: A flat list of integers representing the team in the format:
                     [id, level, move0, move1, move2, move3, ...]
         """
-        # Load the CSV file into a DataFrame
         df = pd.read_csv(csv)
-
         df = df[df['id'] != 0]
-
         random_species_list = df.sample(n=6)
+
+        # Define item ranges
+        item_range_1 = list(range(225, 178, -1)) 
+        item_range_2 = list(range(175, 132, -1))  
+        all_items = item_range_1 + item_range_2
 
         team = []
         for _, random_species in random_species_list.iterrows():
-            moves_list = eval(random_species['moves'])  # Convert string representation of list to actual list
+            moves_list = eval(random_species['moves'])
             random_moves = random.sample(moves_list, min(len(moves_list), 4))
-
             while len(random_moves) < 4:
                 random_moves.append(0)
+            hp_percent = 100
+            item_id = random.choice(all_items)
+            team.extend([random_species['id'], 10] + random_moves + [hp_percent, item_id])
 
-            team.extend([random_species['id'], 10] + random_moves + [100])
-        
         print(f"Created random team: {team}")
         return team
     
@@ -610,7 +612,8 @@ if __name__ == "__main__":
     
     # Reset environment
     observations = rl_core.reset()
-    
+    print(rl_core._create_random_team(POKEMON_CSV_PATH))
+    print(rl_core._create_random_team(POKEMON_CSV_PATH))
 
     # Example game loop
     for step in range(300):
@@ -631,6 +634,8 @@ if __name__ == "__main__":
         
         # Execute step
         observations, rewards, done, info = rl_core.step(actions)
+        
+        rl_core.battle_core.save_savestate(f"step_{step}")
 
         rl_core.render(observations, POKEMON_CSV_PATH)
         

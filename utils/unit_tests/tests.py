@@ -37,21 +37,21 @@ class TestPokemonRLCore(unittest.TestCase):
         self.core.battle_core.write_team_data('enemy', enemy_team)
 
         addr_player = int(self.core.battle_core.parser.get_address('playerTeam'), 16)
-        read_player_team = self.core.battle_core.gba.read_u32_list(addr_player, 42)
+        read_player_team = self.core.battle_core.gba.read_u32_list(addr_player, 8*6)
         print(player_team)
         print(read_player_team)
         # self.assertEqual(read_player_team, player_team, "Player team data mismatch")
 
-
         addr_enemy = int(self.core.battle_core.parser.get_address('enemyTeam'), 16)
-        read_enemy_team = self.core.battle_core.gba.read_u32_list(addr_enemy, 42)
+        read_enemy_team = self.core.battle_core.gba.read_u32_list(addr_enemy, 8*6)
 
         #compare buffer read from gba with player_team
         for i in range(6):
-            start = i * 7
+            start = i * 8
             self.assertEqual(read_player_team[start], player_team[start], "Player team ID mismatch at pokemon {i}")
             self.assertEqual(read_player_team[start + 1], player_team[start + 1], "Player team level mismatch at pokemon {i}")
             self.assertEqual(read_player_team[start + 2:start + 6], player_team[start + 2:start + 6], "Player team moves mismatch at pokemon {i}")
+            self.assertEqual(read_player_team[start + 7], player_team[start + 7],f"Player team item mismatch at pokemon {i}")
 
 
         self.core.battle_core.clear_stop_condition(turn)
@@ -65,36 +65,37 @@ class TestPokemonRLCore(unittest.TestCase):
         enemydf = utils.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
 
         for i in range(6):
-            start = i * 7
-            self.assertEqual(playerdf.iloc[i]['id'], player_team[start], "Player team ID mismatch at pokemon {i}")
-            self.assertEqual(playerdf.iloc[i]['level'], player_team[start + 1], "Player team level mismatch at pokemon {i}")
-            self.assertEqual(playerdf.iloc[i]['moves'], player_team[start + 2:start + 6], "Player team moves mismatch at pokemon {i}")
+            start = i * 8
+            self.assertEqual(playerdf.iloc[i]['id'], player_team[start],f"Player team ID mismatch at pokemon {i}")
+            self.assertEqual(playerdf.iloc[i]['level'], player_team[start + 1],f"Player team level mismatch at pokemon {i}")
+            self.assertEqual(playerdf.iloc[i]['moves'], player_team[start + 2:start + 6],f"Player team moves mismatch at pokemon {i}")
+            self.assertEqual(playerdf.iloc[i]['held_item'], player_team[start + 7],f"Player team item mismatch at pokemon {i}")
 
-        # Compare enemy team
         for i in range(6):
-            start = i * 7
-            self.assertEqual(enemydf.iloc[i]['id'], enemy_team[start], "Enemy team ID mismatch at pokemon {i}")
-            self.assertEqual(enemydf.iloc[i]['level'], enemy_team[start + 1], "Enemy team level mismatch at pokemon {i}") 
-            self.assertEqual(enemydf.iloc[i]['moves'], enemy_team[start + 2:start + 6], "Enemy team moves mismatch at pokemon {i}")
+            start = i * 8
+            self.assertEqual(enemydf.iloc[i]['id'], enemy_team[start],f"Enemy team ID mismatch at pokemon {i}")
+            self.assertEqual(enemydf.iloc[i]['level'], enemy_team[start + 1],f"Enemy team level mismatch at pokemon {i}") 
+            self.assertEqual(enemydf.iloc[i]['moves'], enemy_team[start + 2:start + 6],f"Enemy team moves mismatch at pokemon {i}")
+            self.assertEqual(enemydf.iloc[i]['held_item'], enemy_team[start + 7],f"Enemy team item mismatch at pokemon {i}")
 
     
     def test_enemy_lost(self):
         # pokachu lvl 99 using shock wave (86) with 100% accyracy
         player_team = [
-            25, 99, 84, 84, 84, 84, 100,  # Pikachu with moves and 100% HP
-            0, 10, 0, 0, 0, 0, 0,        # Empty slots
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0
+            25, 99, 84, 84, 84, 84, 100,0,# Pikachu with moves and 100% HP
+            0, 10, 0, 0, 0, 0, 0, 0,       # Empty slots
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0
         ]
         enemy_team = [
-            7, 10, 45, 45, 45, 45, 10,  # Squirtle use move 150 wich does nothing 10% HP
-            0, 10, 0, 0, 0, 0, 0,        # Empty slots
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0
+            7, 10, 45, 45, 45, 45, 10, 0, # Squirtle use move 150 wich does nothing 10% HP
+            0, 10, 0, 0, 0, 0, 0, 0,       # Empty slots
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0
         ]
 
         # This test case Squirtle have 100% chance to death
@@ -133,20 +134,20 @@ class TestPokemonRLCore(unittest.TestCase):
 
     def test_switch_pokemon(self):
         player_team = [
-            25, 1, 150, 150, 150, 150, 100,  # Pikachu  use move 150 wich does nothing
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0
+            25, 1, 150, 150, 150, 150, 100, 0, # Pikachu  use move 150 wich does nothing
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0
         ]
         enemy_team = [
-            7, 99, 74, 53, 54, 55, 10,  # Squirtle use move 74 wich does nothing 10% HP
-            8, 99, 4, 5, 9, 23, 11,
-            12, 99, 4, 5, 9, 23, 11,
-            12, 10, 0, 0, 0, 0, 10,
-            12, 10, 0, 0, 0, 0, 10,
-            12, 10, 0, 0, 0, 0, 10
+            7, 99, 74, 53, 54, 55, 10, 0,  # Squirtle use move 74 wich does nothing 10% HP
+            8, 99, 4, 5, 9, 23, 11, 0,
+            12, 99, 4, 5, 9, 23, 11, 0,
+            12, 10, 0, 0, 0, 0, 10, 0,
+            12, 10, 0, 0, 0, 0, 10, 0,
+            12, 10, 0, 0, 0, 0, 10, 0
         ]
 
         # This test case Squirtle have 100% chance to death
@@ -185,20 +186,20 @@ class TestPokemonRLCore(unittest.TestCase):
 
     def test_switch_pokemon_when_one_fainted_enemy(self):
         player_team = [
-            25, 99, 84, 84, 84, 84, 100,  # Pikachu with moves and 100% HP
-            0, 10, 0, 0, 0, 0, 0,        # Empty slots
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0
+            25, 99, 84, 84, 84, 84, 100, 0,# Pikachu with moves and 100% HP
+            0, 10, 0, 0, 0, 0, 0,0,        # Empty slots
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0, 0
         ]
         enemy_team = [
-            7, 10, 45, 45, 45, 45, 10,  # Squirtle use move 150 wich does nothing 10% HP
-            11, 10, 8, 3, 4, 2, 100,        # Empty slots
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0
+            7, 10, 45, 45, 45, 45, 10,0,  # Squirtle use move 150 wich does nothing 10% HP
+            11, 10, 8, 3, 4, 2, 100,  0,      # Empty slots
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0
         ]
 
         # This test case Squirtle have 100% chance to death
@@ -244,20 +245,20 @@ class TestPokemonRLCore(unittest.TestCase):
 
     def test_switch_pokemon_when_one_fainted_player(self):
         player_team = [
-            7, 2, 45, 45, 45, 45, 10,   
-            26, 10, 8, 3, 4, 2, 100,      
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0
+            7, 2, 45, 45, 45, 45, 10, 0,
+            26, 10, 8, 3, 4, 2, 100,  0,    
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0
         ]
         enemy_team = [
-             25, 10, 84, 84, 84, 84, 100,  # Pikachu with moves and 100% HP
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0,
-            0, 10, 0, 0, 0, 0, 0
+             25, 10, 84, 84, 84, 84, 100,0,  # Pikachu with moves and 100% HP
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0,
+            0, 10, 0, 0, 0, 0, 0,0
         ]
 
         # This test case Pikachu has 100% chance to faint
