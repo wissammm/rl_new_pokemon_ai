@@ -52,7 +52,8 @@ class BattleCore:
     Handles GBA emulator, memory operations, and stop conditions.
     """
     
-    def __init__(self, rom_path: str, bios_path: str, map_path: str, steps: int = 32000):
+    def __init__(self, rom_path: str, bios_path: str, map_path: str, steps: int = 32000, setup: bool = True):
+        
         self.rom_path = rom_path
         self.bios_path = bios_path
         self.map_path = map_path
@@ -62,8 +63,10 @@ class BattleCore:
         self.gba = rustboyadvance_py.RustGba()
         self.gba.load(bios_path, rom_path)
         
-        self._setup_addresses()
-        self._setup_stops()
+        if setup:
+            self._setup_addresses()
+            self._setup_stops()
+
     
     def _setup_addresses(self):
         """Setup memory addresses from the map file"""

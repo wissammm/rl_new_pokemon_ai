@@ -29,6 +29,13 @@
                 "miDebuggerPath": "/opt/devkitpro/devkitARM/bin/arm-none-eabi-gdb",
                 "debugServerPath": "${workspaceRoot}/pokeemerald_ai_rl/mgba.sh"
             }
+        },
+        {
+            "name": "Python",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
         }
     ]
 }

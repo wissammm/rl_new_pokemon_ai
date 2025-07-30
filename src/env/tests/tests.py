@@ -4,7 +4,7 @@ import pandas as pd
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from core import PokemonRLCore, TurnType
+from src.env.core import PokemonRLCore, TurnType
 import rustboyadvance_py
 import src.data.parser
 import src.data.pokemon_data
@@ -318,7 +318,7 @@ class TestPokemonRLCore(unittest.TestCase):
 class TestGbaFunctions(unittest.TestCase):
     def setUp(self):
         self.gba = rustboyadvance_py.RustGba()
-        self.parser = utils.parser.MapAnalyzer(MAP_PATH)
+        self.parser = src.data.parser.MapAnalyzer(MAP_PATH)
         self.gba.load(BIOS_PATH, ROM_PATH)
     
     def test_read_u32(self):
@@ -384,6 +384,7 @@ class TestGbaFunctions(unittest.TestCase):
         
         result = self.gba.read_u32_list(addr, len(data))
         self.assertEqual(result, data)
+        
 
 
 if __name__ == "__main__":

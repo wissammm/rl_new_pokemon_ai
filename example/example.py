@@ -33,16 +33,30 @@ addrs = {
 name_by_addr = {v: k for k, v in addrs.items()}
 
 gba.add_stop_addr(addrs['stopHandleTurn'],1,True,'stopHandleTurn',3)
-# gba.add_stop_addr(addrs['stopHandleTurnCreateTeam'],1,True,'stopHandleTurnCreateTeam',3)
+gba.add_stop_addr(addrs['stopHandleTurnCreateTeam'],1,True,'stopHandleTurnCreateTeam',13)
 id = 0
-print(hex(addrs['stopHandleTurn']))
+
+# get the adress of listTestBuffer
+listTestBuffer_addr = int(parser.get_address('listTestBuffer'), 16)
+print(parser.get_address('stopTestReadWrite'))
+
+
+# get the adress of testBuffer
+testBuffer_addr = int(parser.get_address('testBuffer'), 16)
+print("testBuffer address: ", hex(testBuffer_addr))
+
+# get the adress of stopHandleTurnCreateTeam
+stopHandleTurnCreateTeam_addr = int(parser.get_address('stopHandleTurnCreateTeam'), 16)
+print("stopHandleTurnCreateTeam address: ", hex(stopHandleTurnCreateTeam_addr))
+
 cpt = 0
 last_time = time.time()
 while(1):
     id = gba.run_to_next_stop(STEPS)
     if cpt %10000 == 0:
         print(f"Step {id}")
-    if id == 3:
+    if id == 13:
+        print("cpt = ", cpt)
         print("stop for id ", id)
         now = time.time()                         
         print(f"Time since last event: {now - last_time:.4f} seconds")
