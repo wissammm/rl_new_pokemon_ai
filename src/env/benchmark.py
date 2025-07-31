@@ -8,10 +8,7 @@ import src.data.parser
 import src.data.pokemon_data
 
 STEPS = 50
-ROM_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.elf"
-BIOS_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/rustboyadvance-ng-for-rl/gba_bios.bin"
-MAP_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.map"
-POKEMON_CSV_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/data/csv_data/pokemon_data.csv"
+from src import ROM_PATH, BIOS_PATH, MAP_PATH
 
 class Benchmark:
     def __init__(self):
