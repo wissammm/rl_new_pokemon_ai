@@ -1,9 +1,9 @@
 [submodule "agbcc"]
 	path = agbcc
 	url = https://github.com/pret/agbcc.git
-[submodule "rustboyadvance/external/SDL_GameControllerDB"]
-	path = rustboyadvance/external/SDL_GameControllerDB
-	url = https://github.com/gabomdq/SDL_GameControllerDB.git
-[submodule "rustboyadvance/external/gba-suite"]
-	path = rustboyadvance/external/gba-suite
-	url = https://github.com/jsmolka/gba-suite.git
+[submodule "pokeemerald_ai_rl"]
+	path = pokeemerald_ai_rl
+	url = git@github.com:wissammm/pokeemerald_ai_rl.git
+[submodule "rustboyadvance-ng-for-rl"]
+	path = rustboyadvance-ng-for-rl
+	url = git@github.com:wissammm/rustboyadvance-ng-for-rl.git
