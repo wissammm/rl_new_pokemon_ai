@@ -11,16 +11,13 @@ from rich.console import Console
 from rich.table import Table
 import pandas as pd
 
+from src import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
+
 import rustboyadvance_py
 import src.data.parser
 import src.data.pokemon_data
 
 random.seed(124)
-ROM_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.elf"
-BIOS_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/rustboyadvance-ng-for-rl/gba_bios.bin"
-MAP_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/pokeemerald_ai_rl/pokeemerald_modern.map"
-POKEMON_CSV_PATH = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/data/csv_data/pokemon_data.csv"
-SAVE_PATH  = "/home/wboussella/Documents/rl_new_pokemon_ai/rl_new_pokemon_ai/savestate"
 
 class TurnType(Enum):
     """Enumeration for different turn types"""
