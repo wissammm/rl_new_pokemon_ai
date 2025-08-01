@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+u16 stopWriteData;
+u16 stopReadData;
+
 int main(void) {
 
 	irqInit();

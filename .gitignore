@@ -10,3 +10,8 @@ src/export/tests/gba/build
 
 *.elf
 *.gba
+
+*.egg-info/
+dist/
+build/
+__pycache__/
