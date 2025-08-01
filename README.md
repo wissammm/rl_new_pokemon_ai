@@ -8,6 +8,30 @@ Reinforcement learning environment and tools for Pokémon Emerald :
  - Neural Network graph manipulation 
  - Export of the network onto a gba flash card, effectively replacing the AI of the OG game with your AI.
 
+##  Installation 
+### Linux 
+1. **Clone the repository**
+git clone --recursive
+2. **Set up a Python virtual environment**
+3. **Install Python dependencies**
+   ```sh
+   pip install -r requirements.txt
+   ```
+
+4. **Build and install the rust emulator extension**
+    ```
+    cd rustboyadvance-ng-for-rl/platform/rustboyadvance-py
+    maturin develop --features elf_support --realease
+    ```
+
+5. **Compile the rom**
+
+To compile the custom pokeemerald rom, go to see directly the INSTALL.md inside pokeemerald_ai_rl. Replace make modern by 
+```bash
+make modern DINFO=1 DOBSERVED_DATA=1 DSKIP_TEXT=1 DSKIP_GRAPHICS=1 NO_DEBUG=1 -j
+```
+
+
 ## Project structure
 ```
 rl_new_pokemon_ai/

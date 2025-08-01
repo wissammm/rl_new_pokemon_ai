@@ -8,10 +8,7 @@ import rustboyadvance_py
 import src.data.parser
 import src.data.pokemon_data
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-ROM_PATH = os.path.join(BASE_DIR, "../../pokeemerald_ai_rl/pokeemerald_modern.elf")
-BIOS_PATH = os.path.join(BASE_DIR, "../../rustboyadvance-ng-for-rl/gba_bios.bin")
-MAP_PATH = os.path.join(BASE_DIR, "../../pokeemerald_ai_rl/pokeemerald_modern.map")
+from src import ROM_PATH, BIOS_PATH, MAP_PATH
 
 class TestGbaFunctions(unittest.TestCase):
     def setUp(self):
