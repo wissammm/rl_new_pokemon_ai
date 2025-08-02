@@ -1,8 +1,9 @@
-include
+{{include_list}}
 
-mem 
+{{define_list}}
 
-forward(inputs, outputs) {
-    call function 
-    inputs
+{{data_type}} mem_buffer[{{buffer_size}}];
+
+void forward({{inputs}},{{ouputs}}) {
+    {{call_functions}}
 }
