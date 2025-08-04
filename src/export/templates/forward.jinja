@@ -1,9 +1,9 @@
 {{include_list}}
-
+#include "forward.h"
 {{define_list}}
 
 {{data_type}} mem_buffer[{{buffer_size}}];
 
-void forward({{inputs}},{{ouputs}}) {
+void forward({{inputs}},{{outputs}}) {
     {{call_functions}}
 }

@@ -1,6 +1,13 @@
+import os
+from typing import Optional
 import onnx
+import jinja2
 from onnx import shape_inference
 from src.export.export import CallPosition, ExportParameters, ExportForward, ReLUExporter
+
+supported_operators = {
+    "Relu": (ReLUExporter, ['"nn_functions.h"']),
+}
 
 class ONNXExporter:
     def __init__(self, onnx_path: str):
@@ -14,7 +21,7 @@ class ONNXExporter:
         self.function_calls = []
         self.defines = []
         self.total_buffer_size = 0
-        self.include_list = ["types.h"]
+        self.include_list = ['<gba_types.h>']
 
     def load_and_preprocess(self):
         """Load ONNX model and perform shape inference"""
@@ -22,7 +29,6 @@ class ONNXExporter:
         self.model = shape_inference.infer_shapes(self.model)
         self.graph = self.model.graph
         
-        # Build value info dictionary
         self.value_info = {vi.name: vi for vi in self.graph.value_info}
         self.value_info.update({vi.name: vi for vi in self.graph.input})
         self.value_info.update({vi.name: vi for vi in self.graph.output})
@@ -60,11 +66,15 @@ class ONNXExporter:
         """Create exporter objects for each layer in the graph"""
         input_names = [i.name for i in self.graph.input]
         output_names = [o.name for o in self.graph.output]
-        
+        required_headers = set(self.include_list)
+
         for node in self.graph.node:
-            if node.op_type != "Relu":
-                raise ValueError(f"Unsupported layer type: {node.op_type}")
-            
+            if node.op_type not in supported_operators:
+                continue
+
+            ExporterClass, headers = supported_operators[node.op_type]
+            required_headers.update(headers)
+
             input_name = node.input[0]
             output_name = node.output[0]
             
@@ -104,9 +114,23 @@ class ONNXExporter:
             self.function_calls.append(exporter.get_function_call())
             self.defines.extend(exporter.get_defines())
 
-    def generate_forward_function(self, template_path: str, output_path: str = "forward.c"):
-        """Generate the forward function C file"""
-        include_list = ["<stdint.h>", "types.h"]
+        self.include_list = list(required_headers)
+
+    def generate_forward_function(self, template_path: str, header_template_path: str = None, 
+                                output_dir: str = None, source_subdir: str = "source", include_subdir: str = "include"):
+        """Generate the forward function C file and header"""
+        
+        if output_dir is None:
+            output_dir = os.path.dirname(self.onnx_path)
+        
+        source_dir = os.path.join(output_dir, source_subdir)
+        include_dir = os.path.join(output_dir, include_subdir)
+        
+        os.makedirs(source_dir, exist_ok=True)
+        os.makedirs(include_dir, exist_ok=True)
+        
+        c_output_path = os.path.join(source_dir, "forward.c")
+        h_output_path = os.path.join(include_dir, "forward.h")
         
         forward_exporter = ExportForward(
             template_path=template_path,
@@ -114,18 +138,23 @@ class ONNXExporter:
             inputs=["int8_t *input"],
             outputs=["int8_t *output"],
             buffer_size=self.total_buffer_size,
-            include_list=include_list,
+            include_list=self.include_list,
             define_list=self.defines,
             data_type="int8_t",
-            output_path=output_path
+            output_path=c_output_path
         )
         
         forward_exporter.export_forward()
+        
+        if header_template_path:
+            forward_exporter.export_forward_header(header_template_path, h_output_path)
 
-    def export(self, template_path: str, output_path: str = "forward.c"):
+
+    def export(self, template_path: str, header_template_path: str = None, 
+            output_dir: str = "gba", source_subdir: str = "source", include_subdir: str = "include"):
         """Full export pipeline"""
         self.load_and_preprocess()
         self.calculate_tensor_sizes()
         self.allocate_memory_sequentially()
         self.create_layer_exporters()
-        self.generate_forward_function(template_path, output_path)
+        self.generate_forward_function(template_path, header_template_path, output_dir, source_subdir, include_subdir)

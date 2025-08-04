@@ -132,37 +132,78 @@ class ExportForward(Exporter):
         self.output_path = output_path
         
     def export_forward(self, output_path: Optional[str] = None) -> None:
-            """
-            Export the forward function to a C source file using the template.
-            Args:
-                output_path: Path where the C source file will be written (optional, uses self.output_path if None)
-            """
-            if output_path is None:
-                output_path = self.output_path
-                
-            params = {
-                "include_list": "\n".join(f"#include {inc}" for inc in self.include_list),
-                "define_list": "\n".join(f"#define {define}" for define in self.define_list),
-                "data_type": self.data_type,
-                "buffer_size": self.buffer_size,
-                "inputs": ", ".join(self.inputs),
-                "outputs": ", ".join(self.outputs),
-                "call_functions": "\n    ".join(self.call_functions)
-            }
+        """
+        Export the forward function to a C source file using the template.
+        Args:
+            output_path: Path where the C source file will be written (optional, uses self.output_path if None)
+        """
+        if output_path is None:
+            output_path = self.output_path
             
-            # Render the template
-            output_content = self.template.render(**params)
+        params = {
+            "include_list": "\n".join(f"#include {inc}" for inc in self.include_list),
+            "define_list": "\n".join(f"#define {define}" for define in self.define_list),
+            "data_type": self.data_type,
+            "buffer_size": self.buffer_size,
+            "inputs": ", ".join(self.inputs),
+            "outputs": ", ".join(self.outputs),
+            "call_functions": "\n    ".join(self.call_functions)
+        }
+        
+        # Render the template
+        output_content = self.template.render(**params)
+        
+        # Create output directory if it doesn't exist
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
             
-            # Create output directory if it doesn't exist
-            output_dir = os.path.dirname(output_path)
-            if output_dir and not os.path.exists(output_dir):
-                os.makedirs(output_dir)
-                
-            # Write the output file
-            with open(output_path, 'w') as f:
-                f.write(output_content)
+        # Write the output file
+        with open(output_path, 'w') as f:
+            f.write(output_content)
+        
+        print(f"Forward function exported to: {output_path}")
+    
+    def export_forward_header(self, template_path: str, output_path: Optional[str] = None) -> None:
+        """
+        Export the forward function header file using the template.
+        Args:
+            template_path: Path to the header Jinja template file
+            output_path: Path where the header file will be written
+        """
+        if output_path is None:
+            output_path = os.path.join(os.path.dirname(self.output_path), "forward.h")
             
-            print(f"Forward function exported to: {output_path}")
+        # Set up Jinja environment for the header template
+        template_dir = os.path.dirname(template_path)
+        template_name = os.path.basename(template_path)
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(template_dir),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+        template = env.get_template(template_name)
+        
+        params = {
+            "include_list": "\n".join(f"#include {inc}" for inc in self.include_list),
+            "inputs": ", ".join(self.inputs),
+            "outputs": ", ".join(self.outputs)
+        }
+        
+        # Render the template
+        output_content = template.render(**params)
+        
+        # Create output directory if it doesn't exist
+        output_dir = os.path.dirname(output_path)
+        if output_dir and not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+            
+        # Write the output file
+        with open(output_path, 'w') as f:
+            f.write(output_content)
+        
+        print(f"Forward function header exported to: {output_path}")
+        
 
 
 
@@ -203,6 +244,7 @@ class ReLUExporter(LayerExporter):
             f" {self.name.upper()}_OUTPUT_IDX {self.output_idx}",
             f" {self.name.upper()}_SIZE {self.input_shape[1]}",
         ]
+    
     
 
 # class FullyConnectedExporter(Exporter, LayerExporter):
