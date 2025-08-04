@@ -10,6 +10,9 @@ import rich
 from rich.console import Console
 from rich.table import Table
 import pandas as pd
+import shutil
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.insert(0, project_root)
 
 from src import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
 
@@ -18,6 +21,20 @@ import src.data.parser
 import src.data.pokemon_data
 
 random.seed(124)
+
+
+def clear_save_path():
+    """Delete all files and folders inside SAVE_PATH."""
+    if os.path.exists(SAVE_PATH):
+        for filename in os.listdir(SAVE_PATH):
+            file_path = os.path.join(SAVE_PATH, filename)
+            try:
+                if os.path.isfile(file_path) or os.path.islink(file_path):
+                    os.unlink(file_path)
+                elif os.path.isdir(file_path):
+                    shutil.rmtree(file_path)
+            except Exception as e:
+                print(f"Failed to delete {file_path}: {e}")
 
 class TurnType(Enum):
     """Enumeration for different turn types"""
@@ -61,11 +78,11 @@ class BattleCore:
         self.gba.load(bios_path, rom_path)
         
         if setup:
-            self._setup_addresses()
-            self._setup_stops()
+            self.setup_addresses()
+            self.setup_stops()
 
     
-    def _setup_addresses(self):
+    def setup_addresses(self):
         """Setup memory addresses from the map file"""
         self.addrs = {
             'stopHandleTurnCreateTeam': int(self.parser.get_address('stopHandleTurnCreateTeam'), 16),
@@ -85,7 +102,7 @@ class BattleCore:
             'actionDoneEnemy': int(self.parser.get_address('actionDoneEnemy'), 16),
         }
     
-    def _setup_stops(self):
+    def setup_stops(self):
         """Setup stop addresses for turn handling"""
         self.gba.add_stop_addr(self.addrs['stopHandleTurnCreateTeam'], 1, True, 'stopHandleTurnCreateTeam', 0)
         self.gba.add_stop_addr(self.addrs['stopHandleTurn'], 1, True, 'stopHandleTurn', 1)
@@ -354,27 +371,34 @@ class EpisodeManager:
 
 class SaveStateManager:
     """
-    Template for save state management (to be implemented later).
+    Manages emulator save states for quick save/load functionality.
     """
-    
     def __init__(self, battle_core: BattleCore):
         self.battle_core = battle_core
-        self.save_states = {}
-    
-    def save_state(self, name: str) -> str:
-        """Save current state"""
-        # TODO: Implement save state functionality
-        pass
-    
-    def load_state(self, name: str) -> bool:
-        """Load saved state"""
-        # TODO: Implement load state functionality
-        pass
-    
-    def list_save_states(self) -> List[str]:
-        """List available save states"""
-        return list(self.save_states.keys())
+        self.save_dir = SAVE_PATH
+        os.makedirs(self.save_dir, exist_ok=True)
 
+    def save_state(self, name: str):
+        """Save current state with the given name."""
+        self.battle_core.save_savestate(name)
+
+    def load_state(self, name: str) -> bool:
+        """Load a saved state by name. Returns True if successful, False otherwise."""
+        self.battle_core.load_savestate(name)
+        self.battle_core.setup_addresses()
+        self.battle_core.setup_stops()
+        return True
+
+    def list_save_states(self) -> List[str]:
+        """List all available save state names (without extension)."""
+        if not os.path.exists(self.save_dir):
+            return []
+        files = os.listdir(self.save_dir)
+        return [f[:-10] for f in files if f.endswith(".savestate")]
+
+    def has_state(self, name: str) -> bool:
+        """Check if a save state with the given name exists."""
+        return os.path.exists(os.path.join(self.save_dir, f"{name}.savestate"))
 
 class PokemonRLCore:
     """
@@ -395,18 +419,29 @@ class PokemonRLCore:
         self.agents = ['player', 'enemy']
         self.action_space_size = 10
     
-    def reset(self, save_state: Optional[str] = None) -> Dict[str, pd.DataFrame]:
+    def reset(self, save_state: Optional[str] = "state_before_create_team") -> Dict[str, pd.DataFrame]:
         """Reset the environment"""
         # Load save state if provided
-        if save_state:
-            self.save_state_manager.load_state(save_state)
+        if save_state is not None and self.save_state_manager.has_state(save_state):
+            loaded = self.save_state_manager.load_state(save_state)
+            if not loaded:
+                raise RuntimeError(f"Failed to load save state: {save_state}")
+        else:
+            self.episode_manager.reset_episode()
+            self.turn_manager.state = BattleState()
+            turn = self.turn_manager.advance_to_next_turn()
+            if turn != TurnType.CREATE_TEAM:
+                raise RuntimeError("Expected to start with CREATE_TEAM turn")
         
+            self.save_state_manager.save_state(save_state)
+
         # Reset managers
         self.episode_manager.reset_episode()
         self.turn_manager.state = BattleState()
         
         # Reset team 
         turn = self.turn_manager.advance_to_next_turn()
+
         if turn == TurnType.CREATE_TEAM:
             player_team = self._create_random_team(POKEMON_CSV_PATH)
             enemy_team = self._create_random_team(POKEMON_CSV_PATH)
@@ -556,7 +591,8 @@ class PokemonRLCore:
                 player_mon['move3_pp'],
                 player_mon['move4_pp'],
             ]
-            player_current_details = f"[bold]{player_name}[/bold]\n"
+            # Add HP information for the active Pokémon
+            player_current_details = f"[bold]{player_name}[/bold] - HP: {player_mon['current_hp']}/{player_mon['max_hp']}\n"
             for move, pp in zip(player_moves, player_pp):
                 player_current_details += f"Move {move}: PP {pp}\n"
 
@@ -572,7 +608,8 @@ class PokemonRLCore:
                 enemy_mon['move3_pp'],
                 enemy_mon['move4_pp'],
             ]
-            enemy_current_details = f"[bold]{enemy_name}[/bold]\n"
+            # Add HP information for the active Pokémon
+            enemy_current_details = f"[bold]{enemy_name}[/bold] - HP: {enemy_mon['current_hp']}/{enemy_mon['max_hp']}\n"
             for move, pp in zip(enemy_moves, enemy_pp):
                 enemy_current_details += f"Move {move}: PP {pp}\n"
 
@@ -600,22 +637,27 @@ class PokemonRLCore:
         console.print(table)
 
 
-
 # Example usage
 if __name__ == "__main__":
     # Configuration
-    
-    
+    clear_save_path()
     # Initialize core
     rl_core = PokemonRLCore(ROM_PATH, BIOS_PATH, MAP_PATH)
     
+
     # Reset environment
     observations = rl_core.reset()
-    print(rl_core._create_random_team(POKEMON_CSV_PATH))
-    print(rl_core._create_random_team(POKEMON_CSV_PATH))
 
     # Example game loop
     for step in range(300):
+        if step == 10:
+            rl_core.reset()
+            print("---------------------------")
+            print()
+            print("New save state")
+            print("---------------------------")
+            
+
         # Get current turn info
         current_turn = rl_core.get_current_turn_type()
         required_agents = rl_core.get_required_agents()

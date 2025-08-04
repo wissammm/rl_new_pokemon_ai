@@ -27,7 +27,7 @@ git clone --recursive
 
 To compile the custom pokeemerald rom, go to see directly the INSTALL.md inside pokeemerald_ai_rl. Replace make modern by 
 ```bash
-make modern DINFO=1 DOBSERVED_DATA=1 DSKIP_TEXT=1 DSKIP_GRAPHICS=1 NO_DEBUG=1 -j
+make modern DINFO=1 DOBSERVED_DATA=1 DSKIP_TEXT=1 DSKIP_GRAPHICS=1 NO_DEBUG_PRINT=1 -j
 ```
 
 ## Project structure
