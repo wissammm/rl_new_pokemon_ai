@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Reinforcement learning and exporting neural networks"
 authors = [{ name = "Wissam Boussella", email = "wissamboussella@gmail.com" }]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.12"
 dependencies = [
     "numpy",
     "pandas",
