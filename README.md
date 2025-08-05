@@ -20,7 +20,7 @@ git clone --recursive
 4. **Build and install the rust emulator extension**
     ```
     cd rustboyadvance-ng-for-rl/platform/rustboyadvance-py
-    maturin develop --features elf_support --realease
+    maturin develop --release --features elf_support 
     ```
 
 5. **Compile the rom**

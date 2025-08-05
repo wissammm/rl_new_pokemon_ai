@@ -1,16 +1,31 @@
 import os
-from typing import Optional
+from typing import Optional, Dict, Type, List, Tuple
+import numpy as np
 import onnx
-import jinja2
 from onnx import shape_inference
-from src.export.export import CallPosition, ExportParameters, ExportForward, ReLUExporter
 
-supported_operators = {
+from .enums import CallPosition
+from .exporters.parameters import ExportParameters
+from .exporters.forward import ExportForward
+from .exporters.layers.relu import ReLUExporter
+from .exporters.layers.fc import FullyConnectedExporter
+from .base import LayerExporter
+
+supported_operators: Dict[str, Tuple[Type[LayerExporter], List[str]]] = {
     "Relu": (ReLUExporter, ['"nn_functions.h"']),
+    "Gemm": (FullyConnectedExporter, ['"nn_functions.h"']),
 }
 
 class ONNXExporter:
+    """Exports ONNX models to C code for embedded platforms."""
+    
     def __init__(self, onnx_path: str):
+        """
+        Initialize the ONNX exporter.
+        
+        Args:
+            onnx_path: Path to the ONNX model file
+        """
         self.onnx_path = onnx_path
         self.model = None
         self.graph = None
@@ -48,7 +63,6 @@ class ONNXExporter:
         self.tensor_offsets = {}
         current_offset = 0
         
-        # Process nodes in order to allocate memory sequentially
         for node in self.graph.node:
             for output_name in node.output:
                 if output_name not in [o.name for o in self.graph.output]:
@@ -58,7 +72,10 @@ class ONNXExporter:
         self.total_buffer_size = current_offset
     
     def allocate_memory_reused(self):
-        """Assign memory offsets for tensors, reusing memory where possible"""
+        """
+        Assign memory offsets for tensors, reusing memory where possible.
+        This is more efficient but more complex to implement.
+        """
         #TODO : Implement memory reuse logic
         raise NotImplementedError("Memory reuse logic is not implemented yet.")
 
@@ -68,9 +85,12 @@ class ONNXExporter:
         output_names = [o.name for o in self.graph.output]
         required_headers = set(self.include_list)
 
+        # Collect initializers from the graph
+        initializers = {init.name: init for init in self.graph.initializer}
+
         for node in self.graph.node:
             if node.op_type not in supported_operators:
-                continue
+                RuntimeError(f"Unsupported operator: {node.op_type}")
 
             ExporterClass, headers = supported_operators[node.op_type]
             required_headers.update(headers)
@@ -78,7 +98,6 @@ class ONNXExporter:
             input_name = node.input[0]
             output_name = node.output[0]
             
-            # Determine call position based on tensor usage
             is_first = input_name in input_names
             is_last = output_name in output_names
             
@@ -91,16 +110,13 @@ class ONNXExporter:
             else:
                 call_position = CallPosition.BETWEEN
             
-            # Get input/output indices
             input_idx = self.tensor_offsets.get(input_name, 0)
             output_idx = self.tensor_offsets.get(output_name, 0)
             
-            # Get shapes from value info
             input_shape = tuple(d.dim_value for d in self.value_info[input_name].type.tensor_type.shape.dim)
             output_shape = tuple(d.dim_value for d in self.value_info[output_name].type.tensor_type.shape.dim)
             
-            # Create exporter
-            exporter = ReLUExporter(
+            exporter = ExporterClass(
                 name=node.name,
                 input_shape=input_shape,
                 output_shape=output_shape,
@@ -110,16 +126,38 @@ class ONNXExporter:
                 call_position=call_position
             )
             
-            self.layer_exporters.append(exporter)
-            self.function_calls.append(exporter.get_function_call())
-            self.defines.extend(exporter.get_defines())
+        if ExporterClass == FullyConnectedExporter and node.op_type == "Gemm":
+            weights_name = node.input[1]
+            if weights_name in initializers:
+                from onnx import numpy_helper
+                weights = numpy_helper.to_array(initializers[weights_name])
+                exporter.weights = weights
+            
+            if len(node.input) > 2:
+                bias_name = node.input[2]
+                if bias_name in initializers:
+                    from onnx import numpy_helper
+                    biases = numpy_helper.to_array(initializers[bias_name])
+                    exporter.biases = biases
+                else:
+                    exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
+            else:
+                exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
 
         self.include_list = list(required_headers)
 
     def generate_forward_function(self, template_path: str, header_template_path: str = None, 
                                 output_dir: str = None, source_subdir: str = "source", include_subdir: str = "include"):
-        """Generate the forward function C file and header"""
+        """
+        Generate the forward function C file and header.
         
+        Args:
+            template_path: Path to the Jinja template for the C implementation
+            header_template_path: Path to the Jinja template for the header file
+            output_dir: Directory where files should be saved
+            source_subdir: Subdirectory for source files
+            include_subdir: Subdirectory for header files
+        """
         if output_dir is None:
             output_dir = os.path.dirname(self.onnx_path)
         
@@ -149,12 +187,32 @@ class ONNXExporter:
         if header_template_path:
             forward_exporter.export_forward_header(header_template_path, h_output_path)
 
-
-    def export(self, template_path: str, header_template_path: str = None, 
+    def export(self, template_path: str, header_template_path: str = None, template_parameters_path: str= None,
             output_dir: str = "gba", source_subdir: str = "source", include_subdir: str = "include"):
-        """Full export pipeline"""
+        """
+        Full export pipeline - converts ONNX model to C implementation.
+        
+        Args:
+            template_path: Path to the Jinja template for the C implementation
+            header_template_path: Path to the Jinja template for the header file
+            output_dir: Directory where files should be saved
+            source_subdir: Subdirectory for source files
+            include_subdir: Subdirectory for header files
+        """
         self.load_and_preprocess()
         self.calculate_tensor_sizes()
         self.allocate_memory_sequentially()
         self.create_layer_exporters()
+
+        include_dir = os.path.join(output_dir, include_subdir)
+        os.makedirs(include_dir, exist_ok=True)
+        
+        if template_parameters_path is None:
+            template_parameters_path = os.path.join(os.path.dirname(__file__), "templates", "parameters.jinja")
+        
+        for layer_exporter in self.layer_exporters:
+            layer_exporter.template_path = template_parameters_path
+            layer_exporter.export_layer(include_dir)
+            print(f"Exported layer {layer_exporter.name} parameters to {include_dir}")
+
         self.generate_forward_function(template_path, header_template_path, output_dir, source_subdir, include_subdir)
