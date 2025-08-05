@@ -22,9 +22,6 @@ int main(void) {
 	irqEnable(IRQ_VBLANK);
 
 	stopWriteData = 1;
-	for (int i = 0; i < 10; i++) {
-		input[i] = i - 5; 
-	}
 	forward(input, output);
 	stopReadData = 1;
 	consoleDemoInit();

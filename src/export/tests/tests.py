@@ -6,7 +6,8 @@ import unittest
 import torch
 import torch.nn as nn
 import onnx
-
+import onnxruntime as ort
+import numpy as np
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.insert(0, project_root)
@@ -21,7 +22,21 @@ from typing import List, Any, Union
 from src.export.export import ExportParameters
 from src.export.export import ExportForward
 from src.export.onnx_graph import ONNXExporter
-from src import ROM_PATH, BIOS_PATH, MAP_PATH
+from src import BIOS_PATH, MAP_PATH
+
+def launch_makefile():
+    makefile_path = os.path.join(os.path.dirname(__file__), 'gba', 'Makefile')
+    if not os.path.exists(makefile_path):
+        raise FileNotFoundError(f"Makefile not found at {makefile_path}")
+    
+    os.system(f"make -C {os.path.dirname(makefile_path)}")
+
+def setup_stop_addr(parser, gba):
+    addr_write = int(parser.get_address("stopWriteData"),16)
+    addr_read = int(parser.get_address("stopReadData"),16)
+    gba.add_stop_addr(addr_write,1,True, "stopWriteData",3)
+    gba.add_stop_addr(addr_read,1,True, "stopReadData",4)
+    return addr_write, addr_read
 
 # class TestGbaFunctions(unittest.TestCase):
 #     def setUp(self):
@@ -65,6 +80,10 @@ class TestExportForward(unittest.TestCase):
     def setUp(self):
         self.template_path = os.path.join(os.path.dirname(__file__), '../templates/forward.jinja')
         self.template_path = os.path.abspath(self.template_path)
+        self.header_template_path = os.path.join(os.path.dirname(__file__), '../templates/forward_header.jinja')
+        self.header_template_path = os.path.abspath(self.header_template_path)
+        self.rom_path = os.path.join(os.path.dirname(__file__), 'gba/gba.elf')
+        self.map_path = os.path.join(os.path.dirname(__file__), 'gba/build/gba.map')
         
     def test_export_forward_three_relu(self):
         class ThreeReLUOnly(nn.Module):
@@ -83,6 +102,7 @@ class TestExportForward(unittest.TestCase):
         model = ThreeReLUOnly()
 
         model.eval()
+
         dummy_input = torch.randn(1, 10)
 
         onnx_path = "three_relu_only.onnx"
@@ -95,10 +115,53 @@ class TestExportForward(unittest.TestCase):
             opset_version=11
         )
 
-        # Load the ONNX model into a variable
-        onnx_model = onnx.load(onnx_path)
+        ort_session = ort.InferenceSession(onnx_path)
+
+        input_random = np.random.randint(-128, 128, (1, 10), dtype=np.int8)
+        input_for_onnx = input_random.astype(np.float32)
+        ort_inputs = {"input": input_for_onnx}
+        ort_outs = ort_session.run(None, ort_inputs)
+
         exporter = ONNXExporter(onnx_path)
-        exporter.export(template_path=self.template_path, output_path="forward.c")
+        exporter.export(
+            template_path=self.template_path,
+            header_template_path=self.header_template_path,
+            output_dir=os.path.join(os.path.dirname(__file__), "gba")
+        )
+
+        launch_makefile()
+
+        gba = rustboyadvance_py.RustGba()
+        gba.load(BIOS_PATH, self.rom_path)
+        parser = src.data.parser.MapAnalyzer(self.map_path)
+        addr_write, addr_read = setup_stop_addr(parser, gba)
+
+        output_addr = int(parser.get_address("output"),16)
+        input_addr = int(parser.get_address("input"),16)
+
+
+        id = gba.run_to_next_stop(20000)
+        while id != 3:
+            id = gba.run_to_next_stop(20000)
+        
+        gba.write_i8_list(input_addr, input_random.reshape(-1).tolist())
+        print(gba.read_i8_list(input_addr, 10))
+        gba.write_u16(addr_write, 0)
+
+        id = gba.run_to_next_stop(20000)
+        while id != 4:
+            id = gba.run_to_next_stop(20000)
+        
+        output_read = gba.read_i8_list(output_addr, 10)
+        onnx_output_int8 = np.clip(np.round(ort_outs[0]), -128, 127).astype(np.int8).reshape(-1)
+
+        # Convert output_read to numpy array for comparison
+        gba_output = np.array(output_read, dtype=np.int8).reshape(-1)
+
+        print("ONNX output (int8):", onnx_output_int8)
+        print("GBA output:", gba_output)
+        #Compare initial input with output
+        self.assertTrue(np.array_equal(onnx_output_int8, gba_output))
 
 
 if __name__ == "__main__":
