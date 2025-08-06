@@ -12,7 +12,14 @@ dependencies = [
     "onnx",
     "onnxruntime",
     "rich",
-    "maturin"
+    "maturin",
+    "pettingzoo>=1.25.0",
+    "gymnasium>=1.2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
 ]
 
 [tool.setuptools]
