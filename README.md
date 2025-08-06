@@ -10,18 +10,24 @@ Reinforcement learning environment and tools for Pokémon Emerald :
 ##  Installation 
 ### Linux 
 1. **Clone the repository**
-git clone --recursive
+  ```bash
+  git clone --recursive
+  ```
 2. **Set up a Python virtual environment**
+  ```bash
+  uv venv
+  source .venv/bin/activate
+  ```
 3. **Install Python dependencies**
-   ```sh
-   pip install -r requirements.txt
+   ```bash
+   uv pip compile pyproject.toml
    ```
 
 4. **Build and install the rust emulator extension**
-    ```
+    ```bash 
     cd rustboyadvance-ng-for-rl/platform/rustboyadvance-py
-    maturin develop --release --features elf_support 
-    ```
+    maturin develop --release --features elf_support # can use -jN to use given nb of jobs
+     ```
 
 5. **Compile the rom**
 
