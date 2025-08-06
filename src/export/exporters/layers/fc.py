@@ -8,48 +8,18 @@ from .layer_base import BaseLayerExporter
 class FullyConnectedExporter(BaseLayerExporter):
     """Exporter for fully connected (dense) layers."""
     
-    def __init__(self, 
-                 name: str,
-                 input_shape: Tuple[int, ...], 
-                 output_shape: Tuple[int, ...], 
-                 input_idx: int = 0, 
-                 output_idx: int = 0, 
-                 datatype: str = "int8_t", 
-                 call_position: CallPosition = CallPosition.BETWEEN,
-                 template_path: str = None):
-        """
-        Initialize FC layer exporter.
-        
-        Args:
-            name: Layer name
-            input_shape: Shape of input tensor
-            output_shape: Shape of output tensor
-            input_idx: Input buffer index
-            output_idx: Output buffer index
-            datatype: C data type
-            call_position: Position in the call chain
-            template_path: Path to the template for exporting parameters
-        """
-        super().__init__(name, input_shape, output_shape, input_idx, output_idx, datatype, call_position)
-        self.template_path = template_path
-        # These will be populated when we process the ONNX model
+    def __init__(self, name, input_shape, output_shape, input_idx, output_idx, 
+                 datatype="int8_t", call_position=CallPosition.BETWEEN):
+        super().__init__(name, input_shape, output_shape, input_idx, output_idx, 
+                         datatype, call_position)
         self.weights = None
         self.biases = None
+        self.input_scale = None
+        self.weight_scale = None
+        self.output_scale = None
+        self.multiplier = None
+        self.shift = None
     
-    def get_function_call(self) -> str:
-        """Get the C function call for the FC layer."""
-        input_param = self._get_input_param()
-        output_param = self._get_output_param()
-        
-        return f"fc_{self.datatype}({input_param}, {output_param}, {self.name}_weights, {self.name}_biases, {self.name}_IN_SIZE, {self.name}_OUT_SIZE);"
-    
-    def get_defines(self) -> List[str]:
-        """Get the list of defines for the FC layer."""
-        base_defines = super().get_defines()
-        return base_defines + [
-            f" {self.name}_IN_SIZE {self.input_shape[1]}",
-            f" {self.name}_OUT_SIZE {self.output_shape[1]}",
-        ]
     
     def get_include(self) -> List[str]:
         """Return a list of header filenames required for this layer """
@@ -102,3 +72,50 @@ class FullyConnectedExporter(BaseLayerExporter):
 
         print(f"Exported FC layer parameters for {self.name}")
         return files_generated
+
+    def set_quantization_params(self, input_scale, weight_scale, output_scale):
+        """Set quantization parameters and compute requantization params"""
+        self.input_scale = input_scale
+        self.weight_scale = weight_scale
+        self.output_scale = output_scale
+        
+        self.multiplier, self.shift = self.compute_requantize_params(
+            input_scale, weight_scale, output_scale)
+    
+    def compute_requantize_params(self, input_scale, weight_scale, output_scale):
+        """Compute multiplier and shift for requantization"""
+        # Effective scale is (input_scale * weight_scale / output_scale)
+        effective_scale = (input_scale * weight_scale) / output_scale
+        
+        shift = 0
+        while effective_scale * (1 << shift) < (1 << 30) and shift < 31:
+            shift += 1
+        shift -= 1  
+        
+        multiplier = int(round(effective_scale * (1 << shift)))
+        
+        return multiplier, shift
+    
+    def get_defines(self):
+        defines = super().get_defines()
+        
+        # Add quantization parameters to defines
+        if self.input_scale and self.output_scale:
+            defines.extend([
+                f"#define {self.name}_INPUT_SCALE {self.input_scale}f",
+                f"#define {self.name}_WEIGHT_SCALE {self.weight_scale}f",
+                f"#define {self.name}_OUTPUT_SCALE {self.output_scale}f",
+                f"#define {self.name}_MULTIPLIER {self.multiplier}",
+                f"#define {self.name}_SHIFT {self.shift}"
+            ])
+        
+        return defines
+    
+    def get_function_call(self):
+        """Generate function call with requantization parameters"""
+        input_param = self._get_input_param()
+        output_param = self._get_output_param()
+        if self.multiplier is not None and self.shift is not None:
+            return f"fc_quant_{self.datatype}({input_param}, {output_param}, {self.name}_weights, {self.name}_biases, {self.name}_IN_SIZE, {self.name}_OUT_SIZE,  {self.name}_OUTPUT_SCALE, {self.name}_MULTIPLIER, {self.name}_SHIFT);"
+        else:
+            return f"fc_{self.datatype}({input_param}, {output_param}, {self.name}_weights, {self.name}_biases, {self.name}_IN_SIZE, {self.name}_OUT_SIZE);"
