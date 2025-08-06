@@ -64,11 +64,11 @@ class LayerExporter(ABC):
         pass
     
     @abstractmethod
-    def get_include(self) -> str:
+    def get_include(self) -> List[str]:
         """
-        Get the include statement(s) for the layer.
+        Get the list of header filenames required for the layer (no '#include').
         
         Returns:
-            String containing include statement(s)
+            List of header filenames as strings
         """
         pass

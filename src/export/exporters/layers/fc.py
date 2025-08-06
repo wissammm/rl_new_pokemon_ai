@@ -51,13 +51,16 @@ class FullyConnectedExporter(BaseLayerExporter):
             f" {self.name}_OUT_SIZE {self.output_shape[1]}",
         ]
     
-    def get_include(self) -> str:
-        """Get the include statement for the FC layer."""
-        return f"#include \"{self.name.lower()}_weights.h\"\n#include \"{self.name.lower()}_biases.h\""
+    def get_include(self) -> List[str]:
+        """Return a list of header filenames required for this layer """
+        return [
+            f"{self.name.lower()}_weights.h",
+            f"{self.name.lower()}_biases.h"
+        ]
     
     def export_layer(self, output_dir: str) -> Dict[str, str]:
         """
-        Export FC layer weights and biases.
+        Export FC layer weights and biases as 1D numpy arrays.
         
         Args:
             output_dir: Directory where files should be saved
@@ -65,39 +68,37 @@ class FullyConnectedExporter(BaseLayerExporter):
         Returns:
             Dictionary of generated files
         """
-        if self.weights is None or self.biases is None:
-            print(f"Warning: Weights or biases not available for {self.name}")
-            return {}
-            
+
+        if not isinstance(self.weights, np.ndarray) or not isinstance(self.biases, np.ndarray):
+            raise TypeError(f"Weights and biases must be numpy ndarrays for {self.name}")
+  
         files_generated = {}
-        
+
         weights_path = os.path.join(output_dir, f"{self.name.lower()}_weights.h")
-        weights_data = "{" + ",\n  ".join(["{" + ", ".join(map(str, row)) + "}" for row in self.weights]) + "}"
-        
+        weights_1d = self.weights.flatten().astype(np.int32) 
         weights_exporter = ExportParameters(
             template_path=self.template_path,
-            array_data=weights_data,
+            array_data=weights_1d,
             array_name=f"{self.name}_weights",
-            memory_region="const",
+            memory_region="",
             datatype=self.datatype,
             output_path=weights_path
         )
         weights_file = weights_exporter.export_array()
         files_generated["weights"] = weights_file
-        
+
         biases_path = os.path.join(output_dir, f"{self.name.lower()}_biases.h")
-        biases_data = "{" + ", ".join(map(str, self.biases)) + "}"
-        
+        biases_1d = self.biases.flatten().astype(np.int32)
         biases_exporter = ExportParameters(
             template_path=self.template_path,
-            array_data=biases_data,
+            array_data=biases_1d,
             array_name=f"{self.name}_biases",
-            memory_region="const",
-            datatype="int32_t",  #
+            memory_region="",
+            datatype="int32_t",
             output_path=biases_path
         )
         biases_file = biases_exporter.export_array()
         files_generated["biases"] = biases_file
-        
+
         print(f"Exported FC layer parameters for {self.name}")
         return files_generated

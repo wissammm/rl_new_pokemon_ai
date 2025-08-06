@@ -53,7 +53,7 @@ class ExportForward(Exporter):
             output_path = self.output_path
             
         params = {
-            "include_list": "\n".join(f"#include {inc}" for inc in self.include_list),
+            "include_list": "\n".join(f"#include \"{inc}\"" for inc in self.include_list),
             "define_list": "\n".join(f"#define {define}" for define in self.define_list),
             "data_type": self.data_type,
             "buffer_size": self.buffer_size,
@@ -101,7 +101,7 @@ class ExportForward(Exporter):
         template = env.get_template(template_name)
         
         params = {
-            "include_list": "\n".join(f"#include {inc}" for inc in self.include_list),
+            # "include_list": "\n".join(f"#include \"{inc}\"" for inc in self.include_list),
             "inputs": ", ".join(self.inputs),
             "outputs": ", ".join(self.outputs)
         }

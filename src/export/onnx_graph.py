@@ -12,8 +12,8 @@ from .exporters.layers.fc import FullyConnectedExporter
 from .base import LayerExporter
 
 supported_operators: Dict[str, Tuple[Type[LayerExporter], List[str]]] = {
-    "Relu": (ReLUExporter, ['"nn_functions.h"']),
-    "Gemm": (FullyConnectedExporter, ['"nn_functions.h"']),
+    "Relu": (ReLUExporter, ['nn_functions.h']),
+    "Gemm": (FullyConnectedExporter, ['nn_functions.h']),
 }
 
 class ONNXExporter:
@@ -36,7 +36,7 @@ class ONNXExporter:
         self.function_calls = []
         self.defines = []
         self.total_buffer_size = 0
-        self.include_list = ['<gba_types.h>']
+        self.include_list = []
 
     def load_and_preprocess(self):
         """Load ONNX model and perform shape inference"""
@@ -126,25 +126,29 @@ class ONNXExporter:
                 call_position=call_position
             )
             
-        if ExporterClass == FullyConnectedExporter and node.op_type == "Gemm":
-            weights_name = node.input[1]
-            if weights_name in initializers:
-                from onnx import numpy_helper
-                weights = numpy_helper.to_array(initializers[weights_name])
-                exporter.weights = weights
-            
-            if len(node.input) > 2:
-                bias_name = node.input[2]
-                if bias_name in initializers:
+            if ExporterClass == FullyConnectedExporter and node.op_type == "Gemm":
+                weights_name = node.input[1]
+                if weights_name in initializers:
                     from onnx import numpy_helper
-                    biases = numpy_helper.to_array(initializers[bias_name])
-                    exporter.biases = biases
+                    weights = numpy_helper.to_array(initializers[weights_name])
+                    exporter.weights = weights
+                
+                if len(node.input) > 2:
+                    bias_name = node.input[2]
+                    if bias_name in initializers:
+                        from onnx import numpy_helper
+                        biases = numpy_helper.to_array(initializers[bias_name])
+                        exporter.biases = biases
+                    else:
+                        exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
                 else:
                     exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
-            else:
-                exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
 
-        self.include_list = list(required_headers)
+            self.include_list = list(required_headers)
+            self.include_list.extend(exporter.get_include())
+            self.layer_exporters.append(exporter)
+            self.function_calls.append(exporter.get_function_call())
+            self.defines.extend(exporter.get_defines())
 
     def generate_forward_function(self, template_path: str, header_template_path: str = None, 
                                 output_dir: str = None, source_subdir: str = "source", include_subdir: str = "include"):
