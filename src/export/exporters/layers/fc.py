@@ -98,15 +98,19 @@ class FullyConnectedExporter(BaseLayerExporter):
     
     def get_defines(self):
         defines = super().get_defines()
-        
-        # Add quantization parameters to defines
+        defines.extend([
+            f"{self.name}_IN_SIZE {self.input_shape[-1]}",
+            f"{self.name}_OUT_SIZE {self.output_shape[-1]}",
+            f"{self.name}_WEIGHT_SCALE {self.weight_scale}",
+        ])
+        # Add qua;'ntization parameters to defines
         if self.input_scale and self.output_scale:
             defines.extend([
-                f"#define {self.name}_INPUT_SCALE {self.input_scale}f",
-                f"#define {self.name}_WEIGHT_SCALE {self.weight_scale}f",
-                f"#define {self.name}_OUTPUT_SCALE {self.output_scale}f",
-                f"#define {self.name}_MULTIPLIER {self.multiplier}",
-                f"#define {self.name}_SHIFT {self.shift}"
+                f"{self.name}_INPUT_SCALE {self.input_scale}f",
+                f"{self.name}_WEIGHT_SCALE {self.weight_scale}f",
+                f"{self.name}_OUTPUT_SCALE {self.output_scale}f",
+                f"{self.name}_MULTIPLIER {self.multiplier}",
+                f"{self.name}_SHIFT {self.shift}",
             ])
         
         return defines
