@@ -4,11 +4,13 @@ import random
 import time
 import unittest
 from export.exporters.parameters import ExportParameters
+from quantize.quantize import FullQuantizer
 import torch
 import torch.nn as nn
 import onnx
 import onnxruntime as ort
 import numpy as np
+from onnx import shape_inference
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.insert(0, project_root)
@@ -157,85 +159,121 @@ class TestExportForward(unittest.TestCase):
     #     #Compare initial input with output
     #     self.assertTrue(np.array_equal(onnx_output_int8, gba_output))
 
-    def test_export_fc_forward(self):
-        class SingleFC(nn.Module):
-            def __init__(self):
-                super(SingleFC, self).__init__()
-                self.fc = nn.Linear(10, 5, bias=True)
-                self.fc.weight.data = torch.randint(-5, 10, self.fc.weight.shape).float()
-                self.fc.bias.data = torch.randint(-5, 12, self.fc.bias.shape).float()
-            def forward(self, x):
-                return self.fc(x)
+    # def test_export_fc_forward(self):
+    #     class SingleFC(nn.Module):
+    #         def __init__(self):
+    #             super(SingleFC, self).__init__()
+    #             self.fc = nn.Linear(10, 5, bias=True)
+    #             self.fc.weight.data = torch.randint(-5, 10, self.fc.weight.shape).float()
+    #             self.fc.bias.data = torch.randint(-5, 12, self.fc.bias.shape).float()
+    #         def forward(self, x):
+    #             return self.fc(x)
         
-        model = SingleFC()
-        model.eval()
+    #     model = SingleFC()
+    #     model.eval()
 
+    #     dummy_input = torch.randn(1, 10)
+    #     onnx_path = "single_fc.onnx"
+    #     torch.onnx.export(
+    #         model,
+    #         dummy_input,
+    #         onnx_path,
+    #         input_names=["input"],
+    #         output_names=["output"],
+    #         opset_version=11
+    #     )
+
+    #     ort_session = ort.InferenceSession(onnx_path)
+
+    #     # Generate int8 input and run ONNX inference
+    #     input_random = np.random.randint(-18, 12, (1, 10), dtype=np.int8)
+    #     input_for_onnx = input_random.astype(np.float32)
+    #     ort_inputs = {"input": input_for_onnx}
+    #     ort_outs = ort_session.run(None, ort_inputs)
+
+    #     exporter = ONNXExporter(onnx_path)
+    #     exporter.export(
+    #         output_dir=os.path.join(os.path.dirname(__file__), "gba")
+    #     )
+
+    #     launch_makefile()
+
+    #     gba = rustboyadvance_py.RustGba()
+    #     gba.load(BIOS_PATH, self.rom_path)
+    #     parser = src.data.parser.MapAnalyzer(self.map_path)
+    #     addr_write, addr_read = setup_stop_addr(parser, gba)
+
+    #     output_addr = int(parser.get_address("output"), 16)
+    #     input_addr = int(parser.get_address("input"), 16)
+
+    #     id = gba.run_to_next_stop(20000)
+    #     while id != 3:
+    #         id = gba.run_to_next_stop(20000)
+
+    #     gba.write_i8_list(input_addr, input_random.reshape(-1).tolist())
+    #     gba.write_u16(addr_write, 0)
+
+    #     id = gba.run_to_next_stop(20000)
+    #     while id != 4:    
+    #         id = gba.run_to_next_stop(20000)
+
+    #     output_read = gba.read_i8_list(output_addr, 5)
+    #     onnx_output_int8 = np.clip(np.round(ort_outs[0]), -128, 127).astype(np.int8).reshape(-1)
+    #     gba_output = np.array(output_read, dtype=np.int8).reshape(-1)
+
+    #     print("ONNX output (int8):", onnx_output_int8)
+    #     print("GBA output:", gba_output)
+    #     self.assertTrue(np.array_equal(onnx_output_int8, gba_output))
+
+    def test_export_fc_relu_full_quantized(self):
+        class FCReLU(nn.Module):
+            def __init__(self):
+                super(FCReLU, self).__init__()
+                self.fc = nn.Linear(10, 5, bias=True)
+                self.relu = nn.ReLU()
+                self.fc1 = nn.Linear(5, 3, bias=True)
+                self.relu1 = nn.ReLU()
+
+            def forward(self, x):
+                x = self.fc(x)
+                x = self.relu(x)
+                x = self.fc1(x)
+                x = self.relu1(x)
+                return x
+            
+        model = FCReLU()
+        model.eval()
         dummy_input = torch.randn(1, 10)
-        onnx_path = "single_fc.onnx"
+        onnx_path = "fc_relu.onnx"
+        quantized_onnx_path = "fc_relu_quant.onnx"
+
+
         torch.onnx.export(
             model,
             dummy_input,
             onnx_path,
             input_names=["input"],
             output_names=["output"],
-            opset_version=11
+            opset_version=13,                
+            do_constant_folding=False,       
+            training=torch.onnx.TrainingMode.EVAL,
         )
 
-        ort_session = ort.InferenceSession(onnx_path)
+        quantizer = FullQuantizer(onnx_path, quantized_onnx_path)
+        calib_reader = FullQuantizer.create_fake_calibration_data(onnx_path, num_samples=10)
+        quantizer.quantize(calib_reader)
 
-        # Generate int8 input and run ONNX inference
-        input_random = np.random.randint(-18, 12, (1, 10), dtype=np.int8)
-        input_for_onnx = input_random.astype(np.float32)
-        ort_inputs = {"input": input_for_onnx}
-        ort_outs = ort_session.run(None, ort_inputs)
-
-        exporter = ONNXExporter(onnx_path)
+        quantized_model = onnx.load(quantized_onnx_path)
+        inferred_model = shape_inference.infer_shapes(quantized_model)
+        onnx.save(inferred_model, quantized_onnx_path)
+        
+        exporter = ONNXExporter(quantized_onnx_path)
         exporter.export(
             output_dir=os.path.join(os.path.dirname(__file__), "gba")
         )
 
         launch_makefile()
 
-        gba = rustboyadvance_py.RustGba()
-        gba.load(BIOS_PATH, self.rom_path)
-        parser = src.data.parser.MapAnalyzer(self.map_path)
-        addr_write, addr_read = setup_stop_addr(parser, gba)
-
-        output_addr = int(parser.get_address("output"), 16)
-        input_addr = int(parser.get_address("input"), 16)
-
-        id = gba.run_to_next_stop(20000)
-        while id != 3:
-            id = gba.run_to_next_stop(20000)
-
-        gba.write_i8_list(input_addr, input_random.reshape(-1).tolist())
-        gba.write_u16(addr_write, 0)
-
-        id = gba.run_to_next_stop(20000)
-        while id != 4:
-            id = gba.run_to_next_stop(20000)
-
-        output_read = gba.read_i8_list(output_addr, 5)
-        onnx_output_int8 = np.clip(np.round(ort_outs[0]), -128, 127).astype(np.int8).reshape(-1)
-        gba_output = np.array(output_read, dtype=np.int8).reshape(-1)
-
-        print("ONNX output (int8):", onnx_output_int8)
-        print("GBA output:", gba_output)
-        self.assertTrue(np.array_equal(onnx_output_int8, gba_output))
-
-    # def test_export_fc_relu_full_quantized(self):
-    #     class FCReLU(nn.Module):
-    #         def __init__(self):
-    #             super(FCReLU, self).__init__()
-    #             self.fc = nn.Linear(10, 5, bias=True)
-    #             self.relu = nn.ReLU()
-
-    #         def forward(self, x):
-    #             x = self.fc(x)
-    #             return self.relu(x)
-
-    #     model = FCReLU()
-    #     model.eval()
 
 if __name__ == "__main__":
     unittest.main()

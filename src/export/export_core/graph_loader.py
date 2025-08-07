@@ -52,7 +52,19 @@ class ONNXGraphLoader:
         if not self.model:
             self.load_model()
             
-        if not self.value_info:
-            print("Warning: No value info was extracted from the model!")
-            
+        # IMPROVED VERSION - captures ALL tensors with shape info
+        self.value_info = {}
+        
+        # Get shapes from model.graph.input
+        for input_info in self.model.graph.input:
+            self.value_info[input_info.name] = input_info
+        
+        # Get shapes from model.graph.output
+        for output_info in self.model.graph.output:
+            self.value_info[output_info.name] = output_info
+        
+        # Get shapes from model.graph.value_info - THIS IS THE KEY FIX
+        for tensor_info in self.model.graph.value_info:
+            self.value_info[tensor_info.name] = tensor_info
+        
         return self.value_info

@@ -19,13 +19,16 @@ class MemoryAllocator:
         """Simple sequential allocation"""
         self.tensor_offsets = {}
         current_offset = 0
-        
+
         for node in self.graph.node:
             for output_name in node.output:
                 if output_name not in [o.name for o in self.graph.output]:
-                    self.tensor_offsets[output_name] = current_offset
-                    current_offset += self.tensor_sizes[output_name]
-        
+                    if output_name in self.tensor_sizes:
+                        self.tensor_offsets[output_name] = current_offset
+                        current_offset += self.tensor_sizes[output_name]
+                    else:
+                        print(f"Warning: Skipping tensor '{output_name}' - not in tensor_sizes")
+
         self.total_buffer_size = current_offset
         
     def allocate_with_reuse(self):

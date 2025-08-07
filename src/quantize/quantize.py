@@ -1,69 +1,75 @@
 import torch
 import torch.nn as nn
-from onnxruntime.quantization import quantize_static, CalibrationDataReader, QuantType
+from onnxruntime.quantization import quantize_static, CalibrationDataReader, QuantType, QuantFormat
+from onnxruntime.quantization import QDQQuantizer
 import numpy as np
 import onnx
 
-class SimpleFCNet(nn.Module):
-    def __init__(self, input_size=10, fc1_size=8, fc2_size=4):
-        super().__init__()
-        self.fc1 = nn.Linear(input_size, fc1_size)
-        self.relu1 = nn.ReLU()
-        self.fc2 = nn.Linear(fc1_size, fc2_size)
-        self.relu2 = nn.ReLU()
+class DummyCalibrationDataReader(CalibrationDataReader):
+    """
+    Generates fake calibration data for ONNX quantization.
+    """
+    def __init__(self, input_names, input_shapes, num_samples=10):
+        self.input_names = input_names
+        self.input_shapes = input_shapes
+        self.num_samples = num_samples
+        self.data_iter = self._generate_data()
 
-    def forward(self, x):
-        x = self.fc1(x)
-        x = self.relu1(x)
-        x = self.fc2(x)
-        x = self.relu2(x)
-        return x
-
-def export_to_onnx(model, input_shape, onnx_path):
-    model.eval()
-    dummy_input = torch.randn(*input_shape)
-    torch.onnx.export(
-        model,
-        dummy_input,
-        onnx_path,
-        input_names=['input'],
-        output_names=['output'],
-        dynamic_axes={'input': {0: 'batch_size'}, 'output': {0: 'batch_size'}},
-        opset_version=17
-    )
-    print(f"Exported model to {onnx_path}")
-
-# Calibration data reader for static quantization
-class RandomDataReader(CalibrationDataReader):
-    def __init__(self, input_name, shape, num_batches=10):
-        self.input_name = input_name
-        self.shape = shape
-        self.num_batches = num_batches
-        self.data_iter = iter([
-            {self.input_name: np.random.randn(*self.shape).astype(np.float32)}
-            for _ in range(num_batches)
-        ])
+    def _generate_data(self):
+        for _ in range(self.num_samples):
+            yield {
+                name: np.random.rand(*shape).astype(np.float32)
+                for name, shape in zip(self.input_names, self.input_shapes)
+            }
 
     def get_next(self):
         return next(self.data_iter, None)
 
-def quantize_onnx_static(input_model_path, output_model_path, input_name, input_shape):
-    dr = RandomDataReader(input_name, input_shape)
-    quantize_static(
-        model_input=input_model_path,
-        model_output=output_model_path,
-        calibration_data_reader=dr,
-        quant_format="QOperator", 
-        weight_type=QuantType.QInt8,
-        activation_type=QuantType.QInt8
-    )
-    print(f"Fully quantized model saved to {output_model_path}")
+class FullQuantizer:
+    """
+    Quantizes an ONNX model using full integer quantization (weights and activations).
+    """
+    def __init__(self, input_model_path, output_model_path):
+        self.input_model_path = input_model_path
+        self.output_model_path = output_model_path
 
-if __name__ == "__main__":
-    model = SimpleFCNet()
-    input_shape = (3, 10)  
-    onnx_fp32 = "model_fc.onnx"
-    export_to_onnx(model, input_shape, onnx_fp32)
+    def quantize(self, calibration_data_reader):
+        quantize_static(
+            model_input=self.input_model_path,
+            model_output=self.output_model_path,
+            calibration_data_reader=calibration_data_reader,
+            quant_format=QuantFormat.QOperator,
+            weight_type=QuantType.QInt8,
+            activation_type=QuantType.QInt8,
+            nodes_to_exclude=None,   # Exclure explicitement si besoin
+            # optimize_model=False,    # Désactiver les optimisations automatiques
+        )
+        return self.output_model_path
 
-    onnx_int8 = "model_fc_int8.onnx"
-    quantize_onnx_static(onnx_fp32, onnx_int8, "input", input_shape)
+    @staticmethod
+    def create_fake_calibration_data(onnx_model_path, num_samples=10):
+        """
+        Loads ONNX model and creates a dummy calibration data reader.
+        """
+        model = onnx.load(onnx_model_path)
+        input_names = [inp.name for inp in model.graph.input]
+        input_shapes = [
+            [dim.dim_value for dim in inp.type.tensor_type.shape.dim]
+            for inp in model.graph.input
+        ]
+        return DummyCalibrationDataReader(input_names, input_shapes, num_samples)
+    
+    @staticmethod
+    def quantize_array(array, scale, zero_point):
+        """
+        Quantizes a numpy array using the given scale and zero point.
+        """
+        quantized = np.round(array / scale + zero_point).astype(np.int8)
+        return quantized, scale, zero_point
+
+    @staticmethod
+    def dequantize_array(quantized_array, scale, zero_point):
+        """
+        Dequantizes a numpy array using the given scale and zero point.
+        """
+        return (quantized_array - zero_point) * scale
