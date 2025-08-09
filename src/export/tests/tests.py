@@ -11,6 +11,9 @@ import onnx
 import onnxruntime as ort
 import numpy as np
 from onnx import shape_inference
+from onnx import helper
+
+import torch.nn.functional as F
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.insert(0, project_root)
@@ -225,20 +228,70 @@ class TestExportForward(unittest.TestCase):
     #     print("GBA output:", gba_output)
     #     self.assertTrue(np.array_equal(onnx_output_int8, gba_output))
 
-    def test_export_fc_relu_full_quantized(self):
+    # def test_export_fc_relu_full_quantized(self):
+    #     class FCReLU(nn.Module):
+    #         def __init__(self):
+    #             super().__init__()
+    #             self.w0 = nn.Parameter(torch.randn(10, 5))
+    #             self.b0 = nn.Parameter(torch.randn(5))
+    #             self.w1 = nn.Parameter(torch.randn(5, 3))
+    #             self.b1 = nn.Parameter(torch.randn(3))
+
+    #         def forward(self, x):
+    #             x = torch.matmul(x, self.w0) + self.b0
+    #             x = F.relu(x)
+    #             x = torch.matmul(x, self.w1) + self.b1
+    #             x = F.relu(x)
+    #             return x
+            
+    #     model = FCReLU()
+    #     model.eval()
+    #     dummy_input = torch.randn(1, 10)
+    #     onnx_path = "fc_relu.onnx"
+    #     quantized_onnx_path = "fc_relu_quant.onnx"
+
+
+    #     torch.onnx.export(
+    #         model,
+    #         dummy_input,
+    #         onnx_path,
+    #         input_names=["input"],
+    #         output_names=["output"],
+    #         opset_version=13,                
+    #         do_constant_folding=True,       
+    #         training=torch.onnx.TrainingMode.EVAL,
+    #     )
+
+
+    #     quantizer = FullQuantizer(onnx_path, quantized_onnx_path)
+    #     calib_reader = FullQuantizer.create_fake_calibration_data(onnx_path, num_samples=10)
+    #     quantizer.quantize(calib_reader)
+
+    #     quantized_model = onnx.load(quantized_onnx_path)
+    #     inferred_model = shape_inference.infer_shapes(quantized_model)
+    #     onnx.save(inferred_model, quantized_onnx_path)
+        
+    #     exporter = ONNXExporter(quantized_onnx_path)
+    #     exporter.export(
+    #         output_dir=os.path.join(os.path.dirname(__file__), "gba")
+    #     )
+
+    #     launch_makefile()
+
+    def test_fuse_gemm_quantize_dequantize(self):
         class FCReLU(nn.Module):
             def __init__(self):
-                super(FCReLU, self).__init__()
-                self.fc = nn.Linear(10, 5, bias=True)
-                self.relu = nn.ReLU()
-                self.fc1 = nn.Linear(5, 3, bias=True)
-                self.relu1 = nn.ReLU()
+                super().__init__()
+                self.w0 = nn.Parameter(torch.randn(10, 5))
+                self.b0 = nn.Parameter(torch.randn(5))
+                self.w1 = nn.Parameter(torch.randn(5, 3))
+                self.b1 = nn.Parameter(torch.randn(3))
 
             def forward(self, x):
-                x = self.fc(x)
-                x = self.relu(x)
-                x = self.fc1(x)
-                x = self.relu1(x)
+                x = torch.matmul(x, self.w0) + self.b0
+                x = F.relu(x)
+                x = torch.matmul(x, self.w1) + self.b1
+                x = F.relu(x)
                 return x
             
         model = FCReLU()
@@ -255,9 +308,10 @@ class TestExportForward(unittest.TestCase):
             input_names=["input"],
             output_names=["output"],
             opset_version=13,                
-            do_constant_folding=False,       
+            do_constant_folding=True,       
             training=torch.onnx.TrainingMode.EVAL,
         )
+
 
         quantizer = FullQuantizer(onnx_path, quantized_onnx_path)
         calib_reader = FullQuantizer.create_fake_calibration_data(onnx_path, num_samples=10)
@@ -265,15 +319,19 @@ class TestExportForward(unittest.TestCase):
 
         quantized_model = onnx.load(quantized_onnx_path)
         inferred_model = shape_inference.infer_shapes(quantized_model)
-        onnx.save(inferred_model, quantized_onnx_path)
-        
-        exporter = ONNXExporter(quantized_onnx_path)
-        exporter.export(
-            output_dir=os.path.join(os.path.dirname(__file__), "gba")
-        )
 
-        launch_makefile()
+        onnx.save(inferred_model, quantized_onnx_path)
+        onnx_model = onnx.load(quantized_onnx_path)
+        from export.passes.fusion_pass import GemmQuantDequantFusionPass
+        fusion_pass = GemmQuantDequantFusionPass()
+        fusion_pass.run(onnx_model.graph)  # Changed from quantized_onnx_path.graph to onnx_model.graph
+
+        onnx.save(onnx_model, "fused_gemm_model.onnx")  # Changed from quantized_onnx_path to onnx_model
+
 
 
 if __name__ == "__main__":
     unittest.main()
+
+
+

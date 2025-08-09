@@ -3,7 +3,6 @@ from .export_core.memory_allocator import MemoryAllocator
 from .export_core.exporter_factory import ExporterFactory
 from .export_core.code_generator import CodeGenerator
 from .passes.pass_manager import PassManager
-from .passes.fusion_pass import OperationFusionPass
 from .passes.delete_pass import DeleteQuantizePass
 
 class ONNXExporter:
@@ -18,7 +17,7 @@ class ONNXExporter:
         
         # Run optimization passes
         pass_manager = PassManager(model.graph)
-        pass_manager.add_pass(DeleteQuantizePass())
+        # pass_manager.add_pass(DeleteQuantizePass())
         pass_manager.run_passes()
         optimized_graph = pass_manager.get_optimized_graph()
         

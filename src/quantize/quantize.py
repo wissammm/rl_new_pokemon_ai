@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from onnxruntime.quantization import quantize_static, CalibrationDataReader, QuantType, QuantFormat
 from onnxruntime.quantization import QDQQuantizer
+from onnxruntime.quantization import shape_inference
 import numpy as np
 import onnx
 
@@ -34,15 +35,22 @@ class FullQuantizer:
         self.output_model_path = output_model_path
 
     def quantize(self, calibration_data_reader):
+
+        shape_inference.quant_pre_process(self.input_model_path, self.input_model_path, skip_symbolic_shape=False)
         quantize_static(
             model_input=self.input_model_path,
             model_output=self.output_model_path,
             calibration_data_reader=calibration_data_reader,
-            quant_format=QuantFormat.QOperator,
+            quant_format=QuantFormat.QDQ,
             weight_type=QuantType.QInt8,
             activation_type=QuantType.QInt8,
-            nodes_to_exclude=None,   # Exclure explicitement si besoin
-            # optimize_model=False,    # Désactiver les optimisations automatiques
+            op_types_to_quantize=["Conv", "MatMul", "Gemm"] ,
+            extra_options={
+                "ActivationSymmetric": True,
+                "WeightSymmetric": True,
+                "CalibTensorRangeSymmetric": True,
+                "ForceQuantizeNoInputCheck": True,
+            }
         )
         return self.output_model_path
 

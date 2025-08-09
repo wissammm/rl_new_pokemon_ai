@@ -15,3 +15,4 @@ src/export/tests/gba/build
 dist/
 build/
 __pycache__/
+data/data_scrap_from_mgba

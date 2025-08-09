@@ -198,9 +198,6 @@ class QGemmExporter(BaseLayerExporter):
         defines.extend([
             f"{self.name}_IN_SIZE {self.input_shape[-1]}",
             f"{self.name}_OUT_SIZE {self.output_shape[-1]}",
-            f"{self.name}_INPUT_SCALE {self.input_scale}f",
-            f"{self.name}_WEIGHT_SCALE {self.weight_scale}f",
-            f"{self.name}_OUTPUT_SCALE {self.output_scale}f",
             f"{self.name}_INPUT_ZERO_POINT {self.input_zero_point}",
             f"{self.name}_WEIGHT_ZERO_POINT {self.weight_zero_point}",
             f"{self.name}_BIAS_ZERO_POINT {self.bias_zero_point}",

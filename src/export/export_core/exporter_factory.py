@@ -84,18 +84,17 @@ class ExporterFactory:
         input_idx = self.tensor_offsets.get(input_name, 0)
         output_idx = self.tensor_offsets.get(output_name, 0)
         
-        try:
+        if input_name in self.value_info:
             input_shape = tuple(d.dim_value for d in self.value_info[input_name].type.tensor_type.shape.dim)
-        except KeyError:
-            print(f"Warning: Input tensor '{input_name}' not found in value_info. Using default shape.")
-            input_shape = (1, 10)  # Default shape, adjust as needed
-            
-        try:
-            output_shape = tuple(d.dim_value for d in self.value_info[output_name].type.tensor_type.shape.dim)
-        except KeyError:
-            print(f"Warning: Output tensor '{output_name}' not found in value_info. Using default shape.")
-            output_shape = (1, 5)  # Default shape, adjust as needed
+        else:
+            print(f"Warning: Input tensor '{input_name}' not found in value_info.")
+            input_shape = None  # ou une valeur par défaut ou raise
 
+        if output_name in self.value_info:
+            output_shape = tuple(d.dim_value for d in self.value_info[output_name].type.tensor_type.shape.dim)
+        else:
+            print(f"Warning: Output tensor '{output_name}' not found in value_info.")
+            output_shape = None  # ou valeur par défaut ou raise
 
         return ExporterClass(
             name=node.name,

@@ -46,3 +46,28 @@ def parse_pokemon_scrap(path):
 
     df = pd.DataFrame(data)
     return df
+
+def parse_moves_file(path):
+    data = []
+    current = {}
+    with open(path) as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("[INFO] GBA Debug: moveName:"):
+                if current:
+                    data.append(current)
+                    current = {}
+                move_name = line.split("moveName:", 1)[1].strip()
+                current["moveName"] = move_name
+            elif re.match(r"^\w+:", line):
+                key, value = line.split(":", 1)
+                value = value.strip()
+                try:
+                    value = int(value)
+                except ValueError:
+                    pass
+                current[key] = value
+        if current:
+            data.append(current)
+    df = pd.DataFrame(data)
+    return df
