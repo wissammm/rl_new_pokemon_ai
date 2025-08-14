@@ -5,7 +5,7 @@ from onnx import numpy_helper
 from ..enums import CallPosition
 from ..base import LayerExporter
 from ..exporters.layers.relu import ReLUExporter
-from ..exporters.layers.fc import FullyConnectedExporter, QGemmExporter
+from ..exporters.layers.fc import FullyConnectedExporter, QGemmCustomExporter
 
 class ExporterFactory:
     """Creates layer exporters based on ONNX graph nodes"""
@@ -34,10 +34,10 @@ class ExporterFactory:
                 "headers": ['nn_functions.h'],
                 "config_handler": self._configure_fc_exporter
             },
-            "QGemm": {
-                "exporter_class": QGemmExporter,
+            "QGemmCustom": {
+                "exporter_class": QGemmCustomExporter,
                 "headers": ['nn_functions.h'],
-                "config_handler": self._configure_qgemm_exporter
+                "config_handler": self._configure_qgemmcustom_exporter
             }
         }
     
@@ -144,65 +144,65 @@ class ExporterFactory:
         else:
             exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
     
-    def _configure_qgemm_exporter(self, exporter, node, initializers):
+    def _configure_qgemmcustom_exporter(self, exporter, node, initializers):
         """Configure a QGemm exporter with weights, biases, and quantization parameters"""
         output_shape = exporter.output_shape
-        
+        sx = 0 
         weights_name = node.input[1]
-        if weights_name in initializers:
-            weights = numpy_helper.to_array(initializers[weights_name])
-            exporter.weights = weights
-        
+        quantized_weights_name = weights_name
+        for n in self.graph.node:
+            if n.op_type == "DequantizeLinear" and n.output[0] == weights_name:
+                quantized_weights_name = n.input[0]
+                break
+        if quantized_weights_name in initializers:
+            exporter.weights = numpy_helper.to_array(initializers[quantized_weights_name])
+        else:
+            exporter.weights = None
+
         if len(node.input) > 2:
             bias_name = node.input[2]
-            if bias_name in initializers:
-                biases = numpy_helper.to_array(initializers[bias_name])
-                exporter.biases = biases
+            quantized_bias_name = bias_name
+            for n in self.graph.node:
+                if n.op_type == "DequantizeLinear" and n.output[0] == bias_name:
+                    quantized_bias_name = n.input[0]
+                    # get the input scale factor 
+                    input_scale_name = n.input[1]
+                    break
+            if quantized_bias_name in initializers:
+                exporter.biases = numpy_helper.to_array(initializers[quantized_bias_name])
             else:
                 exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
+            if input_scale_name in initializers:
+                input_scale = numpy_helper.to_array(initializers[input_scale_name]).item(0)
+            else : 
+                input_scale = 1
         else:
             exporter.biases = np.zeros(output_shape[-1], dtype=np.int32)
-        
-        input_scale = None
-        weight_scale = None
-        output_scale = None
-        input_zero_point = 0
-        weight_zero_point = 0
-        bias_zero_point = 0
-        
-        # Look for quantization attributes in the node
-        for attr in node.attribute:
-            if attr.name == 'input_scale':
-                input_scale = attr.f
-            elif attr.name == 'weight_scale':
-                weight_scale = attr.f
-            elif attr.name == 'output_scale':
-                output_scale = attr.f
-            elif attr.name == 'input_zero_point':
-                input_zero_point = attr.i
-            elif attr.name == 'weight_zero_point':
-                weight_zero_point = attr.i
-            elif attr.name == 'bias_zero_point':
-                bias_zero_point = attr.i
-        
+            input_scale = 1
 
-        if input_scale is None or weight_scale is None or output_scale is None:
-            input_scale = 0.1
-            weight_scale = 0.1
-            output_scale = 0.1
-            print(f"Warning: Using default quantization scales for {node.name}. This may affect accuracy.")
+        output_scale_name = node.input[3]
+        output_scale =  numpy_helper.to_array(initializers[output_scale_name]).item(0)
         
         exporter.set_quantization_params(
             input_scale=input_scale,
-            weight_scale=weight_scale,
-            output_scale=output_scale,
-            input_zero_point=input_zero_point,
-            weight_zero_point=weight_zero_point,
-            bias_zero_point=bias_zero_point
+            output_scale=output_scale
         )
+
     def _register_exporter(self, exporter):
         """Register an exporter and collect its artifacts"""
         self.layer_exporters.append(exporter)
         self.function_calls.append(exporter.get_function_call())
         self.defines.extend(exporter.get_defines())
         self.include_list.extend(exporter.get_include())
+    
+    def _get_quantized_input(self, node, graph):
+        """
+        If node.input[0] is the output of a DequantizeLinear node,
+        return the quantized input tensor name (dequant_node.input[0]).
+        Otherwise, return node.input[0].
+        """
+        input_name = node.input[0]
+        for n in graph.node:
+            if n.op_type == "DequantizeLinear" and n.output[0] == input_name:
+                return n.input[0]
+        return input_name

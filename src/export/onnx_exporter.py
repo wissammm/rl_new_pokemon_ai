@@ -17,7 +17,7 @@ class ONNXExporter:
         
         # Run optimization passes
         pass_manager = PassManager(model.graph)
-        # pass_manager.add_pass(DeleteQuantizePass())
+        pass_manager.add_pass(DeleteQuantizePass())
         pass_manager.run_passes()
         optimized_graph = pass_manager.get_optimized_graph()
         

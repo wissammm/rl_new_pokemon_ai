@@ -83,10 +83,8 @@ class FullyConnectedExporter(BaseLayerExporter):
         return f"fc_{self.datatype}({input_param}, {output_param}, {self.name}_weights, {self.name}_biases, {self.name}_IN_SIZE, {self.name}_OUT_SIZE);"
     
 
-
-
-class QGemmExporter(BaseLayerExporter):
-    """Exporter for QGemm (Quantized General Matrix Multiplication) layers."""
+class QGemmCustomExporter(BaseLayerExporter):
+    """Exporter for QGemmCustom layers."""
     def __init__(self, name, input_shape, output_shape, input_idx, output_idx, 
                 datatype="int8_t", call_position=CallPosition.BETWEEN):
         super().__init__(name, input_shape, output_shape, input_idx, output_idx, 
@@ -106,31 +104,25 @@ class QGemmExporter(BaseLayerExporter):
         self.multiplier = None
         self.shift = None
     
-    def set_quantization_params(self, input_scale, weight_scale, output_scale, 
-                               input_zero_point=0, weight_zero_point=0, bias_zero_point=0):
+    def set_quantization_params(self, input_scale, output_scale):
         """Set quantization parameters and compute requantization factors"""
         self.input_scale = input_scale
-        self.weight_scale = weight_scale
         self.output_scale = output_scale
         
-        self.input_zero_point = input_zero_point
-        self.weight_zero_point = weight_zero_point
-        self.bias_zero_point = bias_zero_point
-        
         self.multiplier, self.shift = self.compute_requantize_params(
-            input_scale, weight_scale, output_scale)
+            input_scale, output_scale)
     
-    def compute_requantize_params(self, input_scale, weight_scale, output_scale):
+    def compute_requantize_params(self, input_scale, output_scale):
         """
         Compute multiplier and shift for requantization
         
-        The effective scale for requantization is (input_scale * weight_scale / output_scale)
+        The effective scale for requantization is (input_scale / output_scale)
         We convert this to a fixed-point multiplication with a power-of-2 shift.
         """
-        if input_scale is None or weight_scale is None or output_scale is None:
+        if input_scale is None is None or output_scale is None:
             return None, None
             
-        effective_scale = (input_scale * weight_scale) / output_scale
+        effective_scale = input_scale / output_scale
         
         shift = 0
         while effective_scale * (1 << shift) < (1 << 30) and shift < 31:
@@ -198,9 +190,6 @@ class QGemmExporter(BaseLayerExporter):
         defines.extend([
             f"{self.name}_IN_SIZE {self.input_shape[-1]}",
             f"{self.name}_OUT_SIZE {self.output_shape[-1]}",
-            f"{self.name}_INPUT_ZERO_POINT {self.input_zero_point}",
-            f"{self.name}_WEIGHT_ZERO_POINT {self.weight_zero_point}",
-            f"{self.name}_BIAS_ZERO_POINT {self.bias_zero_point}",
             f"{self.name}_MULTIPLIER {self.multiplier}",
             f"{self.name}_SHIFT {self.shift}",
         ])
@@ -214,5 +203,4 @@ class QGemmExporter(BaseLayerExporter):
         return (f"qgemm_{self.datatype}({input_param}, {output_param}, "
                 f"{self.name}_weights, {self.name}_biases, "
                 f"{self.name}_IN_SIZE, {self.name}_OUT_SIZE, "
-                f"{self.name}_MULTIPLIER, {self.name}_SHIFT, "
-                f"{self.name}_INPUT_ZERO_POINT, {self.name}_WEIGHT_ZERO_POINT);")
+                f"{self.name}_MULTIPLIER, {self.name}_SHIFT);")
