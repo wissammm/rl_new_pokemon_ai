@@ -408,31 +408,20 @@ class TestExportForward(unittest.TestCase):
         print(f"ONNX output (int8): {onnx_output}")
         print(f"GBA output (int8): {gba_output}")
         
-        # Direct comparison (might fail if scaling is applied differently)
-        direct_match = np.array_equal(onnx_output, gba_output)
-        
-        if direct_match:
-            print("✅ Outputs match exactly!")
-            self.assertTrue(True)
-            return
-        
-        # If direct comparison fails, try dequantizing both and comparing
-        print("❌ Direct int8 comparison failed, trying dequantized comparison...")
-        
-        # Dequantize both outputs
-        onnx_float = (onnx_output.astype(np.float32) ) * output_scale
+
+        onnx_float = onnx_output.astype(np.float32) 
         gba_float = (gba_output.astype(np.float32) ) * output_scale
         
         print(f"ONNX output (float): {onnx_float}")
         print(f"GBA output (float): {gba_float}")
         
-        # Compare with tolerance
+        
         float_match = np.allclose(onnx_float, gba_float, rtol=1e-2, atol=1e-2)
         
         if float_match:
-            print("✅ Dequantized outputs match within tolerance!")
+            print("Dequantized outputs match within tolerance!")
         else:
-            print("❌ Dequantized outputs don't match")
+            print(" Dequantized outputs don't match")
             
             # Print detailed differences
             diff = np.abs(onnx_float - gba_float)
