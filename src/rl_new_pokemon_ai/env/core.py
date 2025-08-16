@@ -25,8 +25,6 @@ from rl_new_pokemon_ai import (
 )
 
 import rustboyadvance_py
-import src.data.parser
-import src.data.pokemon_data
 
 random.seed(124)
 
