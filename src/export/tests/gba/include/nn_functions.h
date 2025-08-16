@@ -1,7 +1,7 @@
 #ifndef NN_FUNCTIONS_H
 #define NN_FUNCTIONS_H
 #include <gba_types.h>
-// ReLU implementation (previously in relu.h)
+
 static inline void relu_int8_t(int8_t* input, int8_t* output, int size) {
     for(int i = 0; i < size; i++) {
         output[i] = input[i] > 0 ? input[i] : 0;
@@ -27,8 +27,7 @@ static inline void fc_int8_t(int8_t* input, int8_t* output, const int8_t* weight
 static inline void qgemm_int8_t(const int8_t* input, int8_t* output,
                  const int8_t* weights, const int32_t* biases,
                  const int input_size, const int output_size,
-                 const int32_t multiplier, const int32_t shift,
-                 const int8_t input_zero_point, const int8_t weight_zero_point) {
+                 const int32_t multiplier, const int32_t shift) {
     
     for (int out_idx = 0; out_idx < output_size; out_idx++) {
         int32_t acc = biases[out_idx];
@@ -36,25 +35,22 @@ static inline void qgemm_int8_t(const int8_t* input, int8_t* output,
         const int8_t* w = weights + out_idx * input_size;
         
         for (int in_idx = 0; in_idx < input_size; in_idx++) {
-            int32_t input_val = input[in_idx] - input_zero_point;
-            int32_t weight_val = w[in_idx] - weight_zero_point;
+            int32_t input_val = input[in_idx];
+            int32_t weight_val = w[in_idx];
             
             acc += input_val * weight_val;
         }
         
-        int64_t requantized;
-        if (shift < 0) {
-            requantized = ((int64_t)acc * multiplier) >> (-shift);
-        } else {
-            requantized = ((int64_t)acc * multiplier + (1 << (shift - 1))) >> shift;
+        int64_t scaled = (int64_t)acc * multiplier;
+        
+        if (shift > 0) {
+            scaled += (1LL << (shift - 1));
         }
         
-        if (requantized > 127) {
-            requantized = 127;
-        }
-        if (requantized < -128) {
-            requantized = -128;
-        }
+        int32_t requantized = (int32_t)(scaled >> shift);
+        
+        if (requantized > 127) requantized = 127;
+        if (requantized < -128) requantized = -128;
         
         output[out_idx] = (int8_t)requantized;
     }

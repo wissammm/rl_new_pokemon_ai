@@ -73,3 +73,93 @@ class DeleteQuantizePass:
             if node.op_type == op_type and tensor_name in node.input:
                 return node
         return None
+    
+class DeleteFirstLastQuantizeDequantizePass:
+    """
+    Deletes the first QuantizeLinear/DequantizeLinear pair after input and before output.
+    """
+    def run(self, graph):
+        input_names = {inp.name for inp in graph.input}
+        output_names = {out.name for out in graph.output}
+        tensor_remap = {}
+
+        for node in graph.node:
+            if node.op_type == "QuantizeLinear" and node.input[0] in input_names:
+                quant_node = node
+                quant_output = quant_node.output[0]
+                dequant_node = self._find_consumer(graph, quant_output, "DequantizeLinear")
+                if dequant_node:
+                    tensor_remap[dequant_node.output[0]] = quant_node.input[0]
+                    graph.node.remove(quant_node)
+                    graph.node.remove(dequant_node)
+                    print(f"Deleted QuantizeLinear/DequantizeLinear after input: {quant_node.name} -> {dequant_node.name}")
+                break  # Only first pair
+
+        for node in graph.node:
+            if node.op_type == "DequantizeLinear" and node.output[0] in output_names:
+                dequant_node = node
+                dequant_input = dequant_node.input[0]
+                quant_node = self._find_producer(graph, dequant_input, "QuantizeLinear")
+                if quant_node:
+                    tensor_remap[dequant_node.output[0]] = quant_node.input[0]
+                    graph.node.remove(quant_node)
+                    graph.node.remove(dequant_node)
+                    print(f"Deleted QuantizeLinear/DequantizeLinear before output: {quant_node.name} -> {dequant_node.name}")
+                break  # Only first pair
+
+        for node in graph.node:
+            for i, input_name in enumerate(node.input):
+                if input_name in tensor_remap:
+                    node.input[i] = tensor_remap[input_name]
+
+        for output in graph.output:
+            if output.name in tensor_remap:
+                output.name = tensor_remap[output.name]
+
+    def _find_consumer(self, graph, tensor_name, op_type):
+        for node in graph.node:
+            if node.op_type == op_type and tensor_name in node.input:
+                return node
+        return None
+
+    def _find_producer(self, graph, tensor_name, op_type):
+        for node in graph.node:
+            if node.op_type == op_type and tensor_name in node.output:
+                return node
+        return None
+    
+class DeleteFirstInputQDQPass:
+    """
+    Deletes only the first QuantizeLinear -> DequantizeLinear pair immediately after the input.
+    """
+    def run(self, graph):
+        input_names = {inp.name for inp in graph.input}
+        tensor_remap = {}
+
+        for node in graph.node:
+            if node.op_type == "QuantizeLinear" and node.input[0] in input_names:
+                quant_node = node
+                quant_output = quant_node.output[0]
+                dequant_node = self._find_consumer(graph, quant_output, "DequantizeLinear")
+                if dequant_node:
+                    # Remap output of dequant to input of quant
+                    tensor_remap[dequant_node.output[0]] = quant_node.input[0]
+                    graph.node.remove(quant_node)
+                    graph.node.remove(dequant_node)
+                    print(f"Deleted first QDQ pair after input: {quant_node.name} -> {dequant_node.name}")
+                break  # Only the first pair
+
+        for node in graph.node:
+            for i, input_name in enumerate(node.input):
+                if input_name in tensor_remap:
+                    node.input[i] = tensor_remap[input_name]
+
+        for output in graph.output:
+            if output.name in tensor_remap:
+                output.name = tensor_remap[output.name]
+
+    def _find_consumer(self, graph, tensor_name, op_type):
+        for node in graph.node:
+            if node.op_type == op_type and tensor_name in node.input:
+                return node
+        return None

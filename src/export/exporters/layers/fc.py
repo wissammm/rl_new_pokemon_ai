@@ -119,7 +119,7 @@ class QGemmCustomExporter(BaseLayerExporter):
         The effective scale for requantization is (input_scale / output_scale)
         We convert this to a fixed-point multiplication with a power-of-2 shift.
         """
-        if input_scale is None is None or output_scale is None:
+        if input_scale is None or output_scale is None:
             return None, None
             
         effective_scale = input_scale / output_scale

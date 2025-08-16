@@ -156,6 +156,7 @@ class ExporterFactory:
                 break
         if quantized_weights_name in initializers:
             exporter.weights = numpy_helper.to_array(initializers[quantized_weights_name])
+            exporter.weights = exporter.weights.transpose()
         else:
             exporter.weights = None
 
