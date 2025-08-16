@@ -48,11 +48,58 @@ class ExporterFactory:
         required_headers = set(self.include_list)
         initializers = {init.name: init for init in self.graph.initializer}
 
+        # Build dependency graph for topological sorting
+        dependency_graph = {}
+        tensor_producers = {}  # Maps tensor name to the node that produces it
+        
+        # Collect all nodes we can process
+        processable_nodes = []
         for node in self.graph.node:
-            if node.op_type not in self.operator_registry:
-                print(f"Warning: Unsupported operator {node.op_type} in ONNX model. Skipping.")
-                continue
+            if node.op_type in self.operator_registry:
+                processable_nodes.append(node)
+                # Record which node produces each tensor
+                for output_tensor in node.output:
+                    tensor_producers[output_tensor] = node
+        
+        # Build the dependency graph
+        for node in processable_nodes:
+            dependency_graph[node.name] = []
+            for input_tensor in node.input:
+                # Skip initializers (weights, biases)
+                if input_tensor in initializers:
+                    continue
+                # If this input tensor is produced by another node, add dependency
+                if input_tensor in tensor_producers:
+                    producer_node = tensor_producers[input_tensor]
+                    dependency_graph[node.name].append(producer_node.name)
+        
+        visited = set()
+        temp_visited = set()
+        order = []
+        
+        def visit(node_name):
+            if node_name in temp_visited:
+                raise ValueError("Cycle detected in graph")
+            if node_name in visited:
+                return
             
+            temp_visited.add(node_name)
+            for dep in dependency_graph.get(node_name, []):
+                visit(dep)
+            
+            temp_visited.remove(node_name)
+            visited.add(node_name)
+            order.append(node_name)
+        
+        for node in processable_nodes:
+            if node.name not in visited:
+                visit(node.name)
+        
+        
+        # Create exporters in topological order
+        node_by_name = {node.name: node for node in processable_nodes}
+        for node_name in order:
+            node = node_by_name[node_name]
             op_info = self.operator_registry[node.op_type]
             required_headers.update(op_info["headers"])
             
@@ -66,13 +113,14 @@ class ExporterFactory:
             op_info["config_handler"](exporter, node, initializers)
             
             self._register_exporter(exporter)
-            
+        
         return {
             'exporters': self.layer_exporters,
             'function_calls': self.function_calls,
             'defines': self.defines,
             'includes': self.include_list
         }
+            
     
     def _create_base_exporter(self, node, ExporterClass, input_names, output_names):
         """Create a basic exporter with common parameters"""

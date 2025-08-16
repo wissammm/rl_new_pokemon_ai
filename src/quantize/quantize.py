@@ -43,7 +43,7 @@ class FullQuantizer:
             calibration_data_reader=calibration_data_reader,
             quant_format=QuantFormat.QDQ,
             weight_type=QuantType.QInt8,
-            activation_type=QuantType.QInt8,
+            # activation_type=QuantType.QInt8,
             op_types_to_quantize=["Conv", "MatMul", "Gemm"] ,
             extra_options={
                 "ActivationSymmetric": True,

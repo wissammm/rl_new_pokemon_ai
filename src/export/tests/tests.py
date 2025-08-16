@@ -246,28 +246,28 @@ class TestExportForward(unittest.TestCase):
         print(f"GBA output: {gba_output}")
         self.assertTrue(np.array_equal(onnx_output, gba_output))
 
-    # def test_export_forward_three_relu(self):
-    #     class ThreeReLUOnly(nn.Module):
-    #         def __init__(self):
-    #             super(ThreeReLUOnly, self).__init__()
-    #             self.relu1 = nn.ReLU()
-    #             self.relu2 = nn.ReLU()
-    #             self.relu3 = nn.ReLU()
+    def test_export_forward_three_relu(self):
+        class ThreeReLUOnly(nn.Module):
+            def __init__(self):
+                super(ThreeReLUOnly, self).__init__()
+                self.relu1 = nn.ReLU()
+                self.relu2 = nn.ReLU()
+                self.relu3 = nn.ReLU()
 
-    #         def forward(self, x):
-    #             x = self.relu1(x)
-    #             x = self.relu2(x)
-    #             x = self.relu3(x)
-    #             return x
+            def forward(self, x):
+                x = self.relu1(x)
+                x = self.relu2(x)
+                x = self.relu3(x)
+                return x
         
-    #     model = ThreeReLUOnly()
-    #     self._test_model_inference(
-    #         model=model,
-    #         onnx_filename="three_relu_only.onnx",
-    #         input_shape=(1, 10),
-    #         input_range=(-128, 128),
-    #         output_size=10
-    #     )
+        model = ThreeReLUOnly()
+        self._test_model_inference(
+            model=model,
+            onnx_filename="three_relu_only.onnx",
+            input_shape=(1, 10),
+            input_range=(-128, 128),
+            output_size=10
+        )
 
     # def test_export_fc_forward(self):
     #     class SingleFC(nn.Module):
@@ -289,148 +289,158 @@ class TestExportForward(unittest.TestCase):
     #         output_size=5
     #     )
 
-    # def test_export_fc_relu_full_quantized(self):
-    #     class FCReLU(nn.Module):
+
+    # def test_qgemmcustom_op(self):
+    #     class FCQuant(nn.Module):
     #         def __init__(self):
     #             super().__init__()
     #             self.w0 = nn.Parameter(torch.randn(10, 5))
     #             self.b0 = nn.Parameter(torch.randn(5))
-    #             self.w1 = nn.Parameter(torch.randn(5, 3))
-    #             self.b1 = nn.Parameter(torch.randn(3))
 
     #         def forward(self, x):
     #             x = torch.matmul(x, self.w0) + self.b0
-    #             x = F.relu(x)
-    #             x = torch.matmul(x, self.w1) + self.b1
-    #             x = F.relu(x)
     #             return x
         
-    #     model = FCReLU()
+    #     model = FCQuant()
     #     dummy_input = torch.randn(1, 10)
-    #     onnx_path = "fc_relu.onnx"
-    #     quantized_onnx_path = "fc_relu_quant.onnx"
-
-    #     export_model_to_onnx(model, dummy_input, onnx_path, opset_version=13)
-    #     quantize_onnx_model(onnx_path, quantized_onnx_path)
-        
-    #     exporter = ONNXExporter(quantized_onnx_path)
-    #     exporter.export(output_dir=os.path.join(os.path.dirname(__file__), "gba"))
-    #     launch_makefile()
-
-    # def test_fuse_gemm_quantize_dequantize(self):
-    #     class FCReLU(nn.Module):
-    #         def __init__(self):
-    #             super().__init__()
-    #             self.w0 = nn.Parameter(torch.randn(10, 5))
-    #             self.b0 = nn.Parameter(torch.randn(5))
-    #             self.w1 = nn.Parameter(torch.randn(5, 3))
-    #             self.b1 = nn.Parameter(torch.randn(3))
-
-    #         def forward(self, x):
-    #             x = torch.matmul(x, self.w0) + self.b0
-    #             x = F.relu(x)
-    #             x = torch.matmul(x, self.w1) + self.b1
-    #             x = F.relu(x)
-    #             return x
-        
-    #     model = FCReLU()
-    #     dummy_input = torch.randn(1, 10)
-    #     onnx_path = "fc_relu.onnx"
-    #     quantized_onnx_path = "fc_relu_quant.onnx"
+    #     onnx_path = "fc.onnx"
+    #     quantized_onnx_path = "fc_quant.onnx"
     #     fused_path = "fused_gemm_model.onnx"
 
     #     export_model_to_onnx(model, dummy_input, onnx_path, opset_version=13)
     #     quantize_onnx_model(onnx_path, quantized_onnx_path)
+        
+    #     quantized_model = onnx.load(quantized_onnx_path)
+
+    #     output_scale = get_last_qdq_scaling_factor(quantized_model.graph)[0]
+        
+    #     if output_scale is None:
+    #         raise ValueError("Could not find output DQ node scale and zero point")
+        
+    #     # Random input in float range between -1 and 1
+    #     input_random = np.random.uniform(-1, 1, (1, 10)).astype(np.float32)
+        
+    #     ort_session = ort.InferenceSession(quantized_onnx_path)
+    #     input_type = ort_session.get_inputs()[0].type
+        
+    #     if 'int8' in input_type:
+    #         model_input = input_random
+    #     else:
+    #         model_input = input_random.astype(np.float32)
+        
+    #     ort_outputs = ort_session.run(None, {ort_session.get_inputs()[0].name: model_input})
+    #     onnx_output = ort_outputs[0]
+        
     #     apply_fusion_passes(quantized_onnx_path, fused_path, 
-    #                       use_gemm_fusion=True, use_delete_pass=True)
+    #                     use_gemm_fusion=True, use_delete_pass=True, 
+    #                     use_delete_first_pass=False, use_delete_first_last_pass=False)
         
     #     exporter = ONNXExporter(fused_path)
     #     exporter.export(output_dir=os.path.join(os.path.dirname(__file__), "gba"))
     #     launch_makefile()
+        
+    #     gba, parser, addr_write, addr_read, output_addr, input_addr = setup_gba_environment(
+    #         self.rom_path, self.map_path)
+    #     input_scale = get_first_qdq_scaling_factor(quantized_model.graph)[0]
+         
+    #     input_gba = np.round(input_random / input_scale).astype(np.int8)
+    #     gba_output = run_gba_inference(gba, addr_write, input_addr, output_addr, 
+    #                                 input_gba, 5)  # 5 is output size
+        
+    #     print(f"ONNX output (int8): {onnx_output}")
+    #     print(f"GBA output (int8): {gba_output}")
+        
 
-    def test_qgemmcustom_op(self):
-        class FCQuant(nn.Module):
+    #     onnx_float = onnx_output.astype(np.float32) 
+    #     gba_float = (gba_output.astype(np.float32) ) * output_scale
+        
+    #     print(f"ONNX output (float): {onnx_float}")
+    #     print(f"GBA output (float): {gba_float}")
+        
+        
+    #     float_match = np.allclose(onnx_float, gba_float, rtol=1e-2, atol=1e-2)
+        
+    #     if float_match:
+    #         print("Dequantized outputs match within tolerance!")
+    #     else:
+    #         print(" Dequantized outputs don't match")
+            
+    #         # Print detailed differences
+    #         diff = np.abs(onnx_float - gba_float)
+    #         max_diff = np.max(diff)
+    #         avg_diff = np.mean(diff)
+    #         print(f"Max difference: {max_diff}")
+    #         print(f"Average difference: {avg_diff}")
+    #         print(f"Differences: {diff}")
+        
+    #     self.assertTrue(float_match, "Outputs don't match even after dequantization")
+
+    def test_qgemm_relu_qgemm_relu(self):
+        class TwoFCQuantRelu(nn.Module):
             def __init__(self):
                 super().__init__()
-                self.w0 = nn.Parameter(torch.randn(10, 5))
-                self.b0 = nn.Parameter(torch.randn(5))
+                self.w0 = nn.Parameter(torch.randn(10, 8))
+                self.b0 = nn.Parameter(torch.randn(8))
+                self.w1 = nn.Parameter(torch.randn(8, 5))
+                self.b1 = nn.Parameter(torch.randn(5))
 
             def forward(self, x):
                 x = torch.matmul(x, self.w0) + self.b0
+                x = F.relu(x)
+                x = torch.matmul(x, self.w1) + self.b1
+                x = F.relu(x)
                 return x
-        
-        model = FCQuant()
+
+        model = TwoFCQuantRelu()
         dummy_input = torch.randn(1, 10)
-        onnx_path = "fc.onnx"
-        quantized_onnx_path = "fc_quant.onnx"
-        fused_path = "fused_gemm_model.onnx"
+        onnx_path = "fc2.onnx"
+        quantized_onnx_path = "fc2_quant.onnx"
+        fused_path = "fused_gemm_relu_model.onnx"
 
         export_model_to_onnx(model, dummy_input, onnx_path, opset_version=13)
         quantize_onnx_model(onnx_path, quantized_onnx_path)
-        
         quantized_model = onnx.load(quantized_onnx_path)
-
         output_scale = get_last_qdq_scaling_factor(quantized_model.graph)[0]
-        
         if output_scale is None:
             raise ValueError("Could not find output DQ node scale and zero point")
-        
-        # Random input in float range between -1 and 1
         input_random = np.random.uniform(-1, 1, (1, 10)).astype(np.float32)
-        
         ort_session = ort.InferenceSession(quantized_onnx_path)
         input_type = ort_session.get_inputs()[0].type
-        
         if 'int8' in input_type:
             model_input = input_random
         else:
             model_input = input_random.astype(np.float32)
-        
         ort_outputs = ort_session.run(None, {ort_session.get_inputs()[0].name: model_input})
         onnx_output = ort_outputs[0]
-        
         apply_fusion_passes(quantized_onnx_path, fused_path, 
-                        use_gemm_fusion=True, use_delete_pass=True, 
-                        use_delete_first_pass=False, use_delete_first_last_pass=False)
-        
+                            use_gemm_fusion=True, use_delete_pass=True, 
+                            use_delete_first_pass=False, use_delete_first_last_pass=False)
         exporter = ONNXExporter(fused_path)
         exporter.export(output_dir=os.path.join(os.path.dirname(__file__), "gba"))
         launch_makefile()
-        
         gba, parser, addr_write, addr_read, output_addr, input_addr = setup_gba_environment(
             self.rom_path, self.map_path)
         input_scale = get_first_qdq_scaling_factor(quantized_model.graph)[0]
-         
         input_gba = np.round(input_random / input_scale).astype(np.int8)
         gba_output = run_gba_inference(gba, addr_write, input_addr, output_addr, 
-                                    input_gba, 5)  # 5 is output size
-        
+                                    input_gba, 5)
         print(f"ONNX output (int8): {onnx_output}")
         print(f"GBA output (int8): {gba_output}")
-        
-
-        onnx_float = onnx_output.astype(np.float32) 
-        gba_float = (gba_output.astype(np.float32) ) * output_scale
-        
+        onnx_float = onnx_output.astype(np.float32)
+        gba_float = (gba_output.astype(np.float32)) * output_scale
         print(f"ONNX output (float): {onnx_float}")
         print(f"GBA output (float): {gba_float}")
-        
-        
         float_match = np.allclose(onnx_float, gba_float, rtol=1e-2, atol=1e-2)
-        
         if float_match:
             print("Dequantized outputs match within tolerance!")
         else:
-            print(" Dequantized outputs don't match")
-            
-            # Print detailed differences
+            print("Dequantized outputs don't match")
             diff = np.abs(onnx_float - gba_float)
             max_diff = np.max(diff)
             avg_diff = np.mean(diff)
             print(f"Max difference: {max_diff}")
             print(f"Average difference: {avg_diff}")
             print(f"Differences: {diff}")
-        
         self.assertTrue(float_match, "Outputs don't match even after dequantization")
 
 if __name__ == "__main__":
