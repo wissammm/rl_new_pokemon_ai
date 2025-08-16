@@ -27,7 +27,7 @@ import jinja2
 from typing import List, Any, Union
 
 from export.onnx_exporter import ONNXExporter
-from src import BIOS_PATH, MAP_PATH
+from rl_new_pokemon_ai import BIOS_PATH, MAP_PATH
 
 def launch_makefile():
     makefile_path = os.path.join(os.path.dirname(__file__), 'gba', 'Makefile')

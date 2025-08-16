@@ -1,3 +1,9 @@
+from rl_new_pokemon_ai.env.core import PokemonRLCore, TurnType
+import rl_new_pokemon_ai.data.parser
+import rl_new_pokemon_ai.data.pokemon_data
+from rl_new_pokemon_ai import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
+import rustboyadvance_py
+
 import random
 import unittest
 import pandas as pd
@@ -7,12 +13,6 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.insert(0, project_root)
 
-from src.env.core import PokemonRLCore, TurnType
-import rustboyadvance_py
-import src.data.parser
-import src.data.pokemon_data
-
-from src import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
 
 MAIN_STEPS = 64000
 
