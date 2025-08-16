@@ -474,6 +474,55 @@ class SaveStateManager:
         """Check if a save state with the given name exists."""
         return os.path.exists(os.path.join(self.save_dir, f"{name}.savestate"))
 
+
+class PkmnTeamFactory:
+    # "id" 0 is test
+    pkmn_df = pd.read_csv(POKEMON_CSV_PATH)["id" != 0]
+    moves_df = pd.read_csv(PKMN_MOVES_PATH)
+
+    def __init__(
+        self,
+        pkmn_path: Path = Path(POKEMON_CSV_PATH),
+        moves_path: Path = Path(PKMN_MOVES_PATH),
+        seed: int | None = None,
+    ):
+        # "id" 0 is test
+        self.pkmn_df = pd.read_csv(POKEMON_CSV_PATH)[self.pkmn_df["id"] != 0]
+        self.moves_df = pd.read_csv(PKMN_MOVES_PATH)
+        self.seed = seed
+
+    def create_random_team(self, battle_core: BattleCore) -> List[int]:
+        """
+        Create a random team from the provided CSV files.
+
+        Returns:
+            List[Pkmn]: A flat list of pkmns representing the team in the format:
+                    [id, level, move0, move1, move2, move3, ...]
+        """
+        chosen_species = self.pkmn_df.sample(n=6)
+
+        # Define item ranges
+        item_range_1 = list(range(225, 178, -1))
+        item_range_2 = list(range(175, 132, -1))
+        all_items = item_range_1 + item_range_2
+
+        team: List[int] = []
+        for _, random_species in chosen_species.iterrows():
+            moves_list = eval(random_species["moves"])
+            random_moves_idx = random.sample(moves_list, min(len(moves_list), 4))
+            while len(random_moves_idx) < 4:
+                random_moves_idx.append(0)
+
+            hp_percent = 100
+            item_id = random.choice(all_items)
+            team.extend(
+                [random_species["id"], 10] + random_moves_idx + [hp_percent, item_id]
+            )
+
+        print(f"Created random team: {team}")
+        return team
+
+
 class PokemonRLCore:
     """
     Main class that coordinates all components.
