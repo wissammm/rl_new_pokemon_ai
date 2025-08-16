@@ -14,7 +14,14 @@ import shutil
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.insert(0, project_root)
 
-from src import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
+from src import (
+    ROM_PATH,
+    BIOS_PATH,
+    MAP_PATH,
+    POKEMON_CSV_PATH,
+    SAVE_PATH,
+    PKMN_MOVES_PATH,
+)
 
 import rustboyadvance_py
 import src.data.parser
