@@ -211,24 +211,90 @@ class ObservationManager:
     """
     Manages extraction and formatting of observations from the battle state.
     """
-    
+
+    MAX_PKMN_MOVES = 4
+    RAW_DATA_IDX = {
+        "is_active": 0,
+        "species": 1,
+        "stats_begin": 2,
+        "stats_end": 6,
+        "moves_begin": 7,
+        "moves_end": 10,
+        "iv_begin": 11,
+        "iv_end": 16,
+        "ability": 17,
+        "abitlity_2": 18,
+        "specie_1": 19,
+        "specie_2": 20,
+        "HP": 21,
+        "level": 22,
+        "friendship": 23,
+        "max_HP": 24,
+        "held_item": 25,
+        "pp_bonuses": 26,
+        "personality": 27,
+        "status": 28,
+        "status_1": 29,
+        "status_2": 30,
+        "PP_begin": 31,
+        "PP_end": 34,
+    }
+
     def __init__(self, battle_core: BattleCore):
         self.battle_core = battle_core
-    
-    def get_observations(self) -> Dict[str, pd.DataFrame]:
-        """Get observations for both agents"""
-        observations = {}
-        
-        # Get team data for both agents
-        player_data = self.battle_core.read_team_data('player')
-        enemy_data = self.battle_core.read_team_data('enemy')
-        
-        # Convert to pandas DataFrames
-        observations['player'] = src.data.pokemon_data.to_pandas_team_dump_data(player_data)
-        observations['enemy'] = src.data.pokemon_data.to_pandas_team_dump_data(enemy_data)
-        
+
+    def get_observations(self) -> Dict[str, np.ndarray]:
+        """
+        For both agents, build an observation vector from raw team data.
+        Steps:
+          1. Extract relevant Pokémon attributes (active flag, stats, ability → status).
+          2. For each move: include id, pp info, and extra move stats.
+          3. Concatenate into a flat observation array for the agent.
+        """
+        observations = {"player": None, "enemy": None}
+
+        # Pre-index moves_df by id for O(1) lookups
+        moves_df = PkmnTeamFactory.moves_df.set_index("id").drop(columns=["moveName"])
+        moves_dict = {idx: row.to_numpy() for idx, row in moves_df.iterrows()}
+
+        for agent in observations.keys():
+            # Split raw team data into 6 Pokémon entries
+            raw_data_list = np.split(
+                np.array(self.battle_core.read_team_data(agent), dtype=int),  # force int dtype
+                indices_or_sections=6
+            )
+            raw_data: list[np.ndarray] = [np.array(chunk, dtype=int) for chunk in raw_data_list]  # explicit cast for mypy
+
+            agent_data = np.array([])
+
+            for raw_pkmn in raw_data:
+                # Core Pokémon attributes
+                core_data = np.concatenate([
+                    [raw_pkmn[self.RAW_DATA_IDX["is_active"]]],
+                    raw_pkmn[self.RAW_DATA_IDX["stats_begin"]:self.RAW_DATA_IDX["stats_end"]],
+                    raw_pkmn[self.RAW_DATA_IDX["ability"]:self.RAW_DATA_IDX["status_2"]],
+                ])
+
+                # Moves data (id, pp, stats)
+                moves_id = raw_pkmn[7:11]
+                moves_data = np.concatenate([
+                    np.concatenate([
+                        [move_id],
+                        [moves_dict[move_id][0]],   # max_pp from first col of stored row
+                        [raw_pkmn[self.RAW_DATA_IDX["PP_begin"] + i]],
+                        moves_dict[move_id][1:],    # the rest of stats
+                    ])
+                    for i, move_id in enumerate(moves_id) if move_id in moves_dict
+                ])
+
+                # Merge into agent array
+                agent_data = np.concatenate([agent_data, core_data, moves_data])
+
+            observations[agent] = src.data.pokemon_data.to_pandas_team_dump_data(agent_data)
+
         return observations
-    
+     
+
     def get_observation_space_size(self) -> int:
         """Get the size of the observation space (to be implemented)"""
         return None
