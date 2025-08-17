@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from logging import setup_colored_logging
+from utils.logging import logger # logger to use to generate logging
 from typing import Dict
 
 BASE_DIR = Path(os.path.abspath(__file__))

@@ -34,12 +34,3 @@ setup_colored_logging()
 
 logger = logging.getLogger("pkmn_rl")  # Library-scoped root logger
 logger.addHandler(logging.NullHandler())  # Prevent "No handlers could be found" warnings
-
-# # Example logs
-# logger = logging.getLogger("example")
-# logger.debug("Debugging details here.")
-# logger.info("Informational message.")
-# logger.warning("A warning occurred.")
-# logger.error("An error happened!")
-# logger.critical("Critical failure!")
-
