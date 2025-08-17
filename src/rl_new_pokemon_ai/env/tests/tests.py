@@ -1,7 +1,7 @@
 from rl_new_pokemon_ai.env.core import PokemonRLCore, TurnType
 import rl_new_pokemon_ai.data.parser
 import rl_new_pokemon_ai.data.pokemon_data
-from rl_new_pokemon_ai import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
+from rl_new_pokemon_ai import PATHS
 import rustboyadvance_py
 
 import random
@@ -19,7 +19,7 @@ MAIN_STEPS = 64000
 
 class TestPokemonRLCore(unittest.TestCase):
     def setUp(self):
-        self.core =  PokemonRLCore(ROM_PATH, BIOS_PATH, MAP_PATH)
+        self.core =  PokemonRLCore(PATHS["ROM"], PATHS["BIOS"], PATHS["MAP"])
 
     def test_advance_to_next_turn(self):
         # self.core.reset()
@@ -27,9 +27,9 @@ class TestPokemonRLCore(unittest.TestCase):
         self.assertEqual(turn, TurnType.CREATE_TEAM)
 
     def test_create_team(self):
-        player_team = self.core._create_random_team(POKEMON_CSV_PATH)
+        player_team = self.core._create_random_team(PATHS["PKMN_CSV"])
                                     
-        enemy_team = self.core._create_random_team(POKEMON_CSV_PATH)
+        enemy_team = self.core._create_random_team(PATHS["PKMN_CSV"])
 
         
         turn = self.core.turn_manager.advance_to_next_turn()
@@ -320,8 +320,8 @@ class TestPokemonRLCore(unittest.TestCase):
 class TestGbaFunctions(unittest.TestCase):
     def setUp(self):
         self.gba = rustboyadvance_py.RustGba()
-        self.parser = src.data.parser.MapAnalyzer(MAP_PATH)
-        self.gba.load(BIOS_PATH, ROM_PATH)
+        self.parser = src.data.parser.MapAnalyzer(PATHS["MAP"])
+        self.gba.load(PATHS["BIOS"], PATHS["ROM"])
     
     def test_read_u32(self):
         self.gba.add_stop_addr(int(self.parser.get_address('stopTestReadWrite'),16), 1, True, "stopTestReadWrite", 12)
@@ -383,7 +383,7 @@ class TestGbaFunctions(unittest.TestCase):
         self.gba.save_savestate("test_state.sav")
         
         # Load the state
-        self.gba.load_savestate("test_state.sav",BIOS_PATH, ROM_PATH)
+        self.gba.load_savestate("test_state.sav",PATHS["BIOS"], PATHS["ROM"])
         self.gba.add_stop_addr(int(self.parser.get_address('stopTestReadWriteTwo'), 16), 1, True, 'stopTestReadWriteTwo', 9)
         
         result = self.gba.read_u32_list(addr, len(data))

@@ -6,13 +6,13 @@ from rl_new_pokemon_ai.env.core import PokemonRLCore, TurnType
 import rustboyadvance_py
 import rl_new_pokemon_ai.data.parser
 import rl_new_pokemon_ai.data.pokemon_data
+from rl_new_pokemon_ai import PATHS
 
 STEPS = 50
-from rl_new_pokemon_ai import ROM_PATH, BIOS_PATH, MAP_PATH
 
 class Benchmark:
     def __init__(self):
-        self.rl_core = PokemonRLCore(ROM_PATH, BIOS_PATH, MAP_PATH)
+        self.rl_core = PokemonRLCore(PATHS["ROM"], PATHS["BIOS"], PATHS["MAP"])
         obs = self.rl_core.reset()
 
     def run(self):
