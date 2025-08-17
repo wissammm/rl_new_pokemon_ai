@@ -21,6 +21,7 @@ modifier list tests à lancer dans env/test.py
 Pokemons are described in 35 values by the game : 
 |IDX | value                                    |
 |----|------------------------------------------|
+| 0  | PKMN_MOVES                               | 
 | 1  | IS_ACTIVE                                | 
 | 2  | SPECIES                                  | 
 | 3  | STATS :                                  |
@@ -29,35 +30,37 @@ Pokemons are described in 35 values by the game :
 | 6  |   SPEED                                  | 
 | 7  |   SPATK                                  | 
 | 8  |   SPDEF                                  | 
-| 9  | MOVES_1_ID                               | 
-| 10 | MOVES_2_ID                               | 
-| 11 | MOVES_3_ID                               | 
-| 12 | MOVES_4_ID                               | 
-| 13 | IV                                       |
-| 14 |   HP                                     | 
-| 15 |   ATK                                    | 
-| 16 |   DEF                                    | 
-| 17 |   SPEED                                  | 
-| 18 |   SPATK                                  | 
-| 19 |   SPDEF                                  | 
-| 20 |   SPDEF                                  | 
-| 21 | ABILITY                                  | 
-| 22 | ABILITY(placeholder)                     | 
-| 23 | SPECIE_1 (deduced from SPECIES attribute)| 
-| 24 | SPECIE_2 (deduced from SPECIES attribute)| 
-| 25 | STATUS:                                  | 
-| 26 |   HP                                     | 
-| 27 |   LEVEL                                  | 
-| 28 |   FRIENDSHIP                             | 
-| 29 |   MAX_HP                                 | 
-| 30 |   HELD_ITEM                              | 
-| 31 |   PP_BONUSES                             |
-| 32 |   PERSONALITY                            | 
-| 33 |   STATUS                                 | 
-| 34 | MOVES_PP_1                               | 
-| 35 | MOVES_PP_2                               | 
-| 36 | MOVES_PP_3                               | 
-| 37 | MOVES_PP_4                               | 
+|    | IV                                       |
+| 9  |   HP                                     | 
+| 10 |   ATK                                    | 
+| 11 |   DEF                                    | 
+| 12 |   SPEED                                  | 
+| 13 |   SPATK                                  | 
+| 14 |   SPDEF                                  | 
+| 15 |   SPDEF                                  | 
+| 16 | ABILITY                                  | 
+| 17 | ABILITY(placeholder)                     | 
+| 18 | SPECIE_1 (deduced from SPECIES attribute)| 
+| 19 | SPECIE_2 (deduced from SPECIES attribute)| 
+|    | STATUS:                                  | 
+| 20 |   HP                                     | 
+| 21 |   LEVEL                                  | 
+| 22 |   FRIENDSHIP                             | 
+| 23 |   MAX_HP                                 | 
+| 24 |   HELD_ITEM                              | 
+| 25 |   PP_BONUSES                             |
+| 26 |   PERSONALITY                            | 
+| 27 |   STATUS_1                               | 
+| 27 |   STATUS_2                               | 
+| 27 |   STATUS_3                               | 
+| 28 | MOVES_1_ID                               | 
+| 29 | MOVES_1_PP                               | 
+| 30 | MOVES_2_ID                               | 
+| 31 | MOVES_2_PP                               | 
+| 32 | MOVES_3_ID                               | 
+| 33 | MOVES_3_PP                               | 
+| 34 | MOVES_4_ID                               | 
+| 35 | MOVES_4_PP                               | 
 
                           
 
@@ -74,6 +77,7 @@ Pokemons are described in 35 values by the game :
 Of these we remove SPECIES & IV's and we add moves data : 
 |IDX | value                                    |
 |----|------------------------------------------|
+| 0  | pkmn_ID                                  |
 | 1  | IS_ACTIVE                                |
 |    | STATS :                                  |
 | 2  |   ATK                                    |
@@ -95,6 +99,13 @@ Of these we remove SPECIES & IV's and we add moves data :
 | 17 |   PERSONALITY                            |
 | 18 |   STATUS                                 |
 |    | MOVE_1                                   |
+|    | MOVE_1_PP                                   |
+|    | MOVE_2                                   |
+|    | MOVE_2_PP                                   |
+|    | MOVE_3                                   |
+|    | MOVE_3_PP                                   |
+|    | MOVE_4                                   |
+|    | MOVE_4_PP                                   |
 | 19 |   id                                     |
 | 20 |   MAX_PP                                 |
 | 21 |   CURR_PP                                |
