@@ -1,26 +1,23 @@
+from rl_new_pokemon_ai import PATHS
+import rustboyadvance_py
+from rl_new_pokemon_ai.data.parser import MapAnalyzer
+
 import random
 import sys
 import os
 import numpy as np
 from pathlib import Path
 import pandas as pd
-from typing import Dict, Any, Tuple, Optional, List, Set
+from typing import Dict, Any, Tuple, Optional, List
 from dataclasses import dataclass
 from enum import Enum
-import rich
 from rich.console import Console
 from rich.table import Table
-import pandas as pd
 import shutil
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.insert(0, project_root)
 
-from rl_new_pokemon_ai import PATHS
-
-import rustboyadvance_py
-
-from rl_new_pokemon_ai.data.parser import MapAnalyzer
 
 random.seed(124)
 
