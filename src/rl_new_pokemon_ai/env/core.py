@@ -2,6 +2,7 @@ import random
 import sys
 import os
 import numpy as np
+from pathlib import Path
 import pandas as pd
 from typing import Dict, Any, Tuple, Optional, List, Set
 from dataclasses import dataclass
@@ -11,29 +12,24 @@ from rich.console import Console
 from rich.table import Table
 import pandas as pd
 import shutil
-project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../"))
 sys.path.insert(0, project_root)
 
-from src import (
-from rl_new_pokemon_ai import (
-    ROM_PATH,
-    BIOS_PATH,
-    MAP_PATH,
-    POKEMON_CSV_PATH,
-    SAVE_PATH,
-    PKMN_MOVES_PATH,
-)
+from rl_new_pokemon_ai import PATHS
 
 import rustboyadvance_py
+
+from rl_new_pokemon_ai.data.parser import MapAnalyzer
 
 random.seed(124)
 
 
 def clear_save_path():
-    """Delete all files and folders inside SAVE_PATH."""
-    if os.path.exists(SAVE_PATH):
-        for filename in os.listdir(SAVE_PATH):
-            file_path = os.path.join(SAVE_PATH, filename)
+    """Delete all files and folders inside PATHS["SAVE_PATH"]."""
+    if os.path.exists(PATHS["SAVE_PATH"]):
+        for filename in os.listdir(PATHS["SAVE_PATH"]):
+            file_path = os.path.join(PATHS["SAVE_PATH"], filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
                     os.unlink(file_path)
@@ -71,15 +67,21 @@ class BattleCore:
     Low-level battle engine interface.
     Handles GBA emulator, memory operations, and stop conditions.
     """
-    
-    def __init__(self, rom_path: str, bios_path: str, map_path: str, steps: int = 32000, setup: bool = True):
-        
+
+    def __init__(
+        self,
+        rom_path: Path,
+        bios_path: Path,
+        map_path: Path,
+        steps: int = 32000,
+        setup: bool = True,
+    ):
         self.rom_path = rom_path
         self.bios_path = bios_path
         self.map_path = map_path
         self.steps = steps
         # Initialize parser and GBA emulator
-        self.parser = src.data.parser.MapAnalyzer(map_path)
+        self.parser = MapAnalyzer(map_path)
         self.gba = rustboyadvance_py.RustGba()
         self.gba.load(bios_path, rom_path)
         
@@ -189,16 +191,16 @@ class BattleCore:
     
     def save_savestate(self, name: str) -> str:
         """Save the current state of the emulator"""
-        os.makedirs(SAVE_PATH, exist_ok=True)
-        save_path = os.path.join(SAVE_PATH, f"{name}.savestate")
+        os.makedirs(PATHS["SAVE_PATH"], exist_ok=True)
+        save_path = Path(PATHS["SAVE_PATH"] / f"{name}.savestate")
         self.gba.save_savestate(save_path)
         return save_path
 
-    def load_savestate(self, name: str) -> bool:
+    def load_savestate(self, name: Path) -> bool:
         """Load a saved state"""
-        save_path = os.path.join(SAVE_PATH, f"{name}.savestate")
+        save_path = os.path.join(PATHS["SAVE_PATH"], f"{name}.savestate")
         if os.path.exists(save_path):
-            self.gba.load_savestate(save_path, BIOS_PATH, ROM_PATH)
+            self.gba.load_savestate(save_path, PATHS["BIOS_PATH"], PATHS["ROM_PATH"])
             return True
         else:
             print(f"Save state {save_path} does not exist.")
@@ -447,46 +449,46 @@ class SaveStateManager:
     """
     def __init__(self, battle_core: BattleCore):
         self.battle_core = battle_core
-        self.save_dir = SAVE_PATH
+        self.save_dir = PATHS["SAVE_PATH"]
         os.makedirs(self.save_dir, exist_ok=True)
 
-    def save_state(self, name: str):
+    def save_state(self, name: Path):
         """Save current state with the given name."""
         self.battle_core.save_savestate(name)
 
-    def load_state(self, name: str) -> bool:
+    def load_state(self, name: Path) -> bool:
         """Load a saved state by name. Returns True if successful, False otherwise."""
         self.battle_core.load_savestate(name)
         self.battle_core.setup_addresses()
         self.battle_core.setup_stops()
         return True
 
-    def list_save_states(self) -> List[str]:
+    def list_save_states(self) -> List[Path]:
         """List all available save state names (without extension)."""
         if not os.path.exists(self.save_dir):
             return []
         files = os.listdir(self.save_dir)
         return [f[:-10] for f in files if f.endswith(".savestate")]
 
-    def has_state(self, name: str) -> bool:
+    def has_state(self, name: Path) -> bool:
         """Check if a save state with the given name exists."""
         return os.path.exists(os.path.join(self.save_dir, f"{name}.savestate"))
 
 
 class PkmnTeamFactory:
     # "id" 0 is test
-    pkmn_df = pd.read_csv(POKEMON_CSV_PATH)["id" != 0]
-    moves_df = pd.read_csv(PKMN_MOVES_PATH)
+    pkmn_df = pd.read_csv(PATHS["POKEMON_CSV_PATH"])["id" != 0]
+    moves_df = pd.read_csv(PATHS["PKMN_MOVES_PATH"])
 
     def __init__(
         self,
-        pkmn_path: Path = Path(POKEMON_CSV_PATH),
-        moves_path: Path = Path(PKMN_MOVES_PATH),
+        pkmn_path: Path = Path(PATHS["POKEMON_CSV_PATH"]),
+        moves_path: Path = Path(PATHS["PKMN_MOVES_PATH"]),
         seed: int | None = None,
     ):
         # "id" 0 is test
-        self.pkmn_df = pd.read_csv(POKEMON_CSV_PATH)[self.pkmn_df["id"] != 0]
-        self.moves_df = pd.read_csv(PKMN_MOVES_PATH)
+        self.pkmn_df = pd.read_csv(PATHS["POKEMON_CSV_PATH"])[self.pkmn_df["id"] != 0]
+        self.moves_df = pd.read_csv(PATHS["PKMN_MOVES_PATH"])
         self.seed = seed
 
     def create_random_team(self, battle_core: BattleCore) -> List[int]:
@@ -526,8 +528,10 @@ class PokemonRLCore:
     Main class that coordinates all components.
     This is the primary interface for the RL environment.
     """
-    
-    def __init__(self, rom_path: str, bios_path: str, map_path: str, max_steps: int = 200000):
+
+    def __init__(
+        self, rom_path: Path, bios_path: Path, map_path: Path, max_steps: int = 200000
+    ):
         # Initialize core components
         self.battle_core = BattleCore(rom_path, bios_path, map_path, max_steps)
         self.observation_manager = ObservationManager(self.battle_core)
@@ -540,7 +544,10 @@ class PokemonRLCore:
         self.agents = ['player', 'enemy']
         self.action_space_size = 10
     
-    def reset(self, save_state: Optional[str] = "state_before_create_team") -> Dict[str, pd.DataFrame]:
+
+    def reset(
+        self, save_state: Optional[Path] = Path("state_before_create_team")
+    ) -> Dict[str, pd.DataFrame]:
         """Reset the environment"""
         # Load save state if provided
         if save_state is not None and self.save_state_manager.has_state(save_state):
@@ -564,11 +571,11 @@ class PokemonRLCore:
         turn = self.turn_manager.advance_to_next_turn()
 
         if turn == TurnType.CREATE_TEAM:
-            player_team = self._create_random_team(POKEMON_CSV_PATH)
-            enemy_team = self._create_random_team(POKEMON_CSV_PATH)
-            
-            self.battle_core.write_team_data('player', player_team)
-            self.battle_core.write_team_data('enemy', enemy_team)
+            player_team = self._create_random_team(PATHS["POKEMON_CSV_PATH"])
+            enemy_team = self._create_random_team(PATHS["POKEMON_CSV_PATH"])
+
+            self.battle_core.write_team_data("player", player_team)
+            self.battle_core.write_team_data("enemy", enemy_team)
             self.battle_core.clear_stop_condition(turn)
             
         else:
@@ -763,8 +770,7 @@ if __name__ == "__main__":
     # Configuration
     clear_save_path()
     # Initialize core
-    rl_core = PokemonRLCore(ROM_PATH, BIOS_PATH, MAP_PATH)
-    
+    rl_core = PokemonRLCore(PATHS["ROM_PATH"], PATHS["BIOS_PATH"], PATHS["MAP_PATH"])
 
     # Reset environment
     observations = rl_core.reset()
@@ -799,8 +805,8 @@ if __name__ == "__main__":
         
         rl_core.battle_core.save_savestate(f"step_{step}")
 
-        rl_core.render(observations, POKEMON_CSV_PATH)
-        
+        rl_core.render(observations, PATHS["POKEMON_CSV_PATH"])
+
         print(f"Rewards: {rewards}, Done: {done}")
         
         if done:
