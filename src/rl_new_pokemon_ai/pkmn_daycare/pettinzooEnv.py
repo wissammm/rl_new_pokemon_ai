@@ -4,8 +4,8 @@ from pathlib import Path
 
 from env.core import PokemonRLCore
 from pettingzoo import AECEnv
-from .. import POKEMON_CSV_PATH
-from ..env.core import (
+from rl_new_pokemon_ai import PATHS
+from rl_new_pokemon_ai.env.core import (
     BattleCore,
     BattleState,
     ObservationManager,
@@ -14,12 +14,11 @@ from ..env.core import (
     TurnType,
     EpisodeManager,
     SaveStateManager,
+    PkmnTeamFactory,
 )
-from ..logging import logger
+from rl_new_pokemon_ai.utils.logging import logger
 from gymnasium.spaces import Discrete
 import numpy as np
-import pandas as pd
-
 
 
 class PkmnDayCare(AECEnv):
@@ -37,25 +36,29 @@ class PkmnDayCare(AECEnv):
         "name": "pkmn_daycare_v0.1",
     }
 
-    def __init__(
-        self, rom_path: Path, bios_path: Path, map_path: Path, max_steps: int = 200000
-    ):
+    def __init__(self, battle_core: BattleCore, max_steps_per_episode: int = 1000):
         # Initialize core components
-        self.battle_core = BattleCore(rom_path, bios_path, map_path, max_steps)
+        self.battle_core = battle_core
         self.observation_manager = ObservationManager(self.battle_core)
         self.action_manager = ActionManager(self.battle_core)
         self.turn_manager = TurnManager(self.battle_core, self.action_manager)
         self.episode_manager = EpisodeManager()
         self.save_state_manager = SaveStateManager(self.battle_core)
+        self.team_factory = PkmnTeamFactory(PATHS["PKMN_CSV"], PATHS["MOVES_CSV"])
 
         # Environment configuration
         self.possible_agents = ["player", "enemy"]
         self.action_space_size = 10
 
+        self.terminations = {agent: False for agent in self.agents}
+        self.rewards = {"player": 0.0, "enemy": 0.0}
+        self.total_steps = 0
+        self.max_steps_per_episode = max_steps_per_episode  # Configurable
+
     def reset(
         self,
         seed: int | None = None,
-        options : Dict[str, str] | None = None,
+        options: Dict[str, str] | None = None,
     ):
         """
         Reset needs to initialize the following attributes
@@ -80,9 +83,13 @@ class PkmnDayCare(AECEnv):
 
         # Load save state if provided
         if options is None:
-            raise ValueError(f"options argument is empty, cannot load save_state from options[\"save_state\"], exiting")
+            raise ValueError(
+                'options argument is empty, cannot load save_state from options["save_state"], exiting'
+            )
         elif options.get("save_state", None) is None:
-            raise ValueError(f"\"save_state\" key was not found in options argument. cannot load save state, exiting")
+            raise ValueError(
+                f'"save_state" key was not found in options argument. cannot load save state.\nKeys in option : {options.keys()}.\n\nexiting'
+            )
 
         save_state = Path(options["save_state"])
         if not self.save_state_manager.has_state(save_state):
@@ -93,15 +100,18 @@ class PkmnDayCare(AECEnv):
             raise RuntimeError(f"Failed to load save state: {save_state}")
 
         # Reset managers
+        self.rewards = {"player": 0.0, "enemy": 0.0}
+        self.total_steps = 0
         self.episode_manager.reset_episode()
         self.turn_manager.reset_battle_state()
+        self.terminations = {agent: False for agent in self.agents}
 
         # Reset team
         turn = self.turn_manager.advance_to_next_turn()
         if turn != TurnType.CREATE_TEAM:
             raise RuntimeError("Expected to start with CREATE_TEAM turn")
-        player_team = self._create_random_team(POKEMON_CSV_PATH)
-        enemy_team = self._create_random_team(POKEMON_CSV_PATH)
+        player_team = self.team_factory.create_random_team(self.battle_core)
+        enemy_team = self.team_factory.create_random_team(self.battle_core)
 
         self.battle_core.write_team_data("player", player_team)
         self.battle_core.write_team_data("enemy", enemy_team)
@@ -123,9 +133,62 @@ class PkmnDayCare(AECEnv):
         - infos
         - agent_selection (to the next agent)
         And any internal state used by observe() or render()
+
+        Args:
+            actions: Dictionary of actions for each agent
+
+        Returns:
+            observations: New observations for each agent
+            rewards: Rewards for each agent (placeholder)
+            done: Whether the episode is finished
+            info: Additional information
+
+
         """
-        self.arena.step(actions)
-        pass
+        # Execute actions
+
+        # Check termination conditions
+        if (
+            self.turn_manager.is_battle_done()
+            or self.max_steps_per_episode > self.episode_steps
+        ):
+            terminations = {agent: True for agent in self.agents}
+
+        # Get observations
+        # Get dummy infos (not used in this example)
+        # Validate actions
+        for agent, action in actions.items():
+            if not self.action_manager.is_valid_action(action):
+                raise ValueError(f"Invalid action {action} for agent {agent}")
+
+        # Process turn
+        turn_completed = self.turn_manager.process_turn(actions)
+
+        if turn_completed:
+            # Advance to next turn
+            self.turn_manager.advance_to_next_turn()
+
+        # Get new observations
+        observations = self.observation_manager.get_observations()
+
+        # Calculate rewards (placeholder)
+        rewards = {"player": 0.0, "enemy": 0.0}
+
+        # Check if episode is done
+        battle_done = self.turn_manager.is_battle_done()
+        episode_done = self.episode_manager.is_episode_done(battle_done)
+
+        # Update episode
+        self.episode_manager.update_episode(rewards)
+
+        # Prepare info
+        info = {
+            "current_turn": self.turn_manager.get_current_turn(),
+            "battle_done": battle_done,
+            "episode_info": self.episode_manager.get_episode_info(),
+        }
+
+        return observations, rewards, episode_done, info
 
     def render(self):
         pass
