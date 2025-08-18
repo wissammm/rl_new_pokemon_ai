@@ -358,22 +358,23 @@ class ActionManager:
                 self.battle_core.write_action("enemy", actions["enemy"])
 
     def get_legal_actions(self, agent: str) -> List[int]:
-        if agent == "player":
-            legal_moves = self.battle_core.gba.read_u16_list(
-                self.battle_core.addrs["legalMoveActionsPlayer"], 4
-            )
-            legal_switches = self.battle_core.gba.read_u16_list(
-                self.battle_core.addrs["legalSwitchActionsPlayer"], 6
-            )
-        elif agent == "enemy":
-            legal_moves = self.battle_core.gba.read_u16_list(
-                self.battle_core.addrs["legalMoveActionsEnemy"], 4
-            )
-            legal_switches = self.battle_core.gba.read_u16_list(
-                self.battle_core.addrs["legalSwitchActionsEnemy"], 6
-            )
-        else:
-            raise ValueError(f"Unknown agent: {agent}")
+        match agent:
+            case "player":
+                legal_moves = self.battle_core.gba.read_u16_list(
+                    self.battle_core.addrs["legalMoveActionsPlayer"], 4
+                )
+                legal_switches = self.battle_core.gba.read_u16_list(
+                    self.battle_core.addrs["legalSwitchActionsPlayer"], 6
+                )
+            case "enemy":
+                legal_moves = self.battle_core.gba.read_u16_list(
+                    self.battle_core.addrs["legalMoveActionsEnemy"], 4
+                )
+                legal_switches = self.battle_core.gba.read_u16_list(
+                    self.battle_core.addrs["legalSwitchActionsEnemy"], 6
+                )
+            case _:
+                raise ValueError(f"Unknown agent: {agent}")
 
         valid_moves = [i for i, move in enumerate(legal_moves) if move]
         valid_switches = [
@@ -430,14 +431,15 @@ class TurnManager:
 
     def _get_required_agents(self) -> List[str]:
         """Get list of agents required for current turn"""
-        if self.state.current_turn == TurnType.GENERAL:
-            return ["player", "enemy"]
-        elif self.state.current_turn == TurnType.PLAYER:
-            return ["player"]
-        elif self.state.current_turn == TurnType.ENEMY:
-            return ["enemy"]
-        else:
-            return []
+        match self.state.current_turn :
+            case TurnType.GENERAL:
+                return ["player", "enemy"]
+            case TurnType.PLAYER:
+                return ["player"]
+            case TurnType.ENEMY:
+                return ["enemy"]
+            case _:
+                return []
 
     def is_battle_done(self) -> bool:
         """Check if battle is finished"""
