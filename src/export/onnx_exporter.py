@@ -25,7 +25,7 @@ class ONNXExporter:
         
         allocator = MemoryAllocator(optimized_graph, updated_value_info)
         allocator.calculate_tensor_sizes()
-        allocator.allocate_sequentially()
+        allocator.allocate_with_reuse()
         
         exporter_factory = ExporterFactory(
             optimized_graph, 
