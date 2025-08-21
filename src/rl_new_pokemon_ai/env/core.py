@@ -282,10 +282,10 @@ class ObservationManager:
           2. For each move: include id, pp info, and extra move stats.
           3. Concatenate into a flat observation array for the agent.
         """
-        observations = {"player": None, "enemy": None}
+        observations : Dict[str, np.ndarray | None]= {"player": None, "enemy": None}
 
         # Pre-index moves_df by id for O(1) lookups
-        moves_df = PkmnTeamFactory.moves_df.set_index("id").drop(columns=["moveName"])
+        moves_df = PkmnTeamFactory.moves.set_index("id").drop(columns=["moveName"])
         moves_dict = {idx: row.to_numpy() for idx, row in moves_df.iterrows()}
 
         for agent in observations.keys():
@@ -320,8 +320,6 @@ class ObservationManager:
 
                 # Merge into agent array
                 agent_data = np.concatenate([agent_data, core_data, moves_data])
-
-            observations[agent] = src.data.pokemon_data.to_pandas_team_dump_data(agent_data)
 
         return observations
      
@@ -402,9 +400,9 @@ class TurnManager:
         """
         if self.state.current_turn == TurnType.DONE:
             return True
-
+        
         # Check if we have all required actions
-        required_agents = self._get_required_agents()
+        required_agents = self.get_required_agents()
         if not all(agent in actions for agent in required_agents):
             return False
 
@@ -429,7 +427,7 @@ class TurnManager:
 
         return self.state.current_turn
 
-    def _get_required_agents(self) -> List[str]:
+    def get_required_agents(self) -> List[str]:
         """Get list of agents required for current turn"""
         match self.state.current_turn :
             case TurnType.GENERAL:
@@ -470,8 +468,6 @@ class EpisodeManager:
 
     def reset_episode(self):
         """Reset episode state"""
-        self.episode_rewards = {"player": 0.0, "enemy": 0.0}
-        self.episode_steps = 0
 
     def update_episode(self, rewards: Dict[str, float] = None):
         """Update episode state"""
@@ -529,8 +525,8 @@ class SaveStateManager:
 
 class PkmnTeamFactory:
     # "id" 0 is test
-    pkmn_df = pd.read_csv(PATHS["PKMN_CSV"])["id" != 0]
-    moves_df = pd.read_csv(PATHS["PKMN_MOVES_CSV"])
+    pkmn = pd.read_csv(PATHS["PKMN_CSV"])["id" != 0]
+    moves = pd.read_csv(PATHS["PKMN_MOVES_CSV"])
 
     def __init__(
         self,
@@ -539,8 +535,8 @@ class PkmnTeamFactory:
         seed: int | None = None,
     ):
         # "id" 0 is test
-        self.pkmn_df = pd.read_csv(PATHS["PKMN_CSV"])[self.pkmn_df["id"] != 0]
-        self.moves_df = pd.read_csv(PATHS["PKMN_MOVES_CSV"])
+        self.pkmn = pd.read_csv(PATHS["PKMN_CSV"])[self.pkmn["id"] != 0]
+        self.moves = pd.read_csv(PATHS["PKMN_MOVES_CSV"])
         self.seed = seed
 
     def create_random_team(self, battle_core: BattleCore) -> List[int]:
@@ -551,7 +547,7 @@ class PkmnTeamFactory:
             List[Pkmn]: A flat list of pkmns representing the team in the format:
                     [id, level, move0, move1, move2, move3, ...]
         """
-        chosen_species = self.pkmn_df.sample(n=6)
+        chosen_species = self.pkmn.sample(n=6)
 
         # Define item ranges
         item_range_1 = list(range(225, 178, -1))
@@ -574,7 +570,17 @@ class PkmnTeamFactory:
         print(f"Created random team: {team}")
         return team
 
+    @staticmethod
+    def is_valid_id(id:int):
+        if not 1 <= id <= 411:
+                raise ValueError(f"Trying to get a pkmn name from an invalid ID. Id must be comprised within [1;411], got {id}")
 
+    def get_pokemon_rows(self, ids : List[int]):
+        # error checking
+        [PkmnTeamFactory.is_valid_id(id) for id in ids]
+        # computation
+        return self.pkmn["id" in ids]
+            
 class PokemonRLCore:
     """
     Main class that coordinates all components.
@@ -734,7 +740,7 @@ class PokemonRLCore:
         print(f"Created random team: {team}")
         return team
 
-    def render(self, observations: Dict[str, pd.DataFrame], csv_path: str):
+    def render(self, observations: Dict[str, pd.DataFrame] ):
         """
         Render the current state of the battle using the rich library.
 
