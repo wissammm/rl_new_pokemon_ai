@@ -5,13 +5,14 @@
 *.pdb
 *.swp
 *.savestate
+*.elf
+*.gba
+*.onnx
+*.egg-info/
+
 
 src/export/tests/gba/build
 
-*.elf
-*.gba
-
-*.egg-info/
 dist/
 build/
 __pycache__/

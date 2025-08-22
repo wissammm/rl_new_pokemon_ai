@@ -30,7 +30,7 @@ MUSIC		:=
 #---------------------------------------------------------------------------------
 # options for code generation
 #---------------------------------------------------------------------------------
-ARCH	:=	-mthumb -mthumb-interwork
+ARCH := -marm -mthumb-interwork
 
 CFLAGS	:=	-g -Wall -O0\
 		-mcpu=arm7tdmi -mtune=arm7tdmi\
@@ -42,6 +42,7 @@ CXXFLAGS	:=	$(CFLAGS) -fno-rtti -fno-exceptions
 
 ASFLAGS	:=	-g $(ARCH)
 LDFLAGS	=	-g $(ARCH) -Wl,-Map,$(notdir $*.map)
++LDFLAGS += -T$(CURDIR)/ld_script.ld
 
 #---------------------------------------------------------------------------------
 # any extra libraries we wish to link with the project
@@ -75,6 +76,7 @@ export DEPSDIR	:=	$(CURDIR)/$(BUILD)
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
 SFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.s)))
++SFILES		+=	crt0.s
 BINFILES	:=	$(foreach dir,$(DATA),$(notdir $(wildcard $(dir)/*.*)))
 
 ifneq ($(strip $(MUSIC)),)
