@@ -14,7 +14,7 @@ class RewardCoeff:
 class RewardManager:
     def __init__(self, coeffs: RewardCoeff):
         self.coeffs = coeffs
-        self.episode_obs: npt.NDArray[Observation] = np.array([])
+        self.episode_obs : npt.NDArray[Observation] = np.array([])
 
     def compute_reward(self, o: Observation) -> float:
         # positive reward for positive action : hp gain / positiv status / enemy damage / battle won / friend pkmn ko
