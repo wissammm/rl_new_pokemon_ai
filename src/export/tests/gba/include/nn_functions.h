@@ -1,7 +1,5 @@
 #ifndef NN_FUNCTIONS_H
 #define NN_FUNCTIONS_H
-#include <gba_types.h>
-#include <gba_systemcalls.h>
 
 #define IN_EWRAM __attribute__((section(".ewram")))
 #define IN_IWRAM __attribute__((section(".iwram")))

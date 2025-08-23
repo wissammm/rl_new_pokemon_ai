@@ -10,21 +10,10 @@
 
 #include <gba.h>
 
-#ifndef TIMER_ENABLE
-#define TIMER_ENABLE (1 << 7)
-#endif
 
-#ifndef TIMER_IRQ
-#define TIMER_IRQ (1 << 6)
-#endif
-
-#ifndef TIMER_DIV_64
-#define TIMER_DIV_64 (2 << 0)
-#endif
 
 // #include "forward.h"
 #include "input_data.h"
-#include "test_array.h"
 // #include "_matmul_2_matmuladdfusion_fused_weights.h"
 
 #include <stdio.h>
@@ -40,16 +29,13 @@ volatile int8_t output[10] IN_EWRAM;
 
 int main(void)
 {
-
     irqInit();
     irqEnable(IRQ_VBLANK);
     consoleDemoInit();
 
-
-   
-
     iprintf("\x1b[10;10HInference begin!\n");
     stopWriteData = 1;
+    all_tests();
     // forward(input, output);
     stopReadData = 1;
 
