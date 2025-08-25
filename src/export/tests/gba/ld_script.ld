@@ -15,7 +15,9 @@ SECTIONS {
     *(.text .text.*);
   } >rom
 
-  .iwram : {
+  .iwram_text :
+  {
+    KEEP(*(.iwram_text))
+  } > IW_RAM
 
-  } >iwram
 }
