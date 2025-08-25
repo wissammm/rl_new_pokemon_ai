@@ -5,21 +5,23 @@ import functools
 from pettingzoo import AECEnv
 from rl_new_pokemon_ai import PATHS
 from rl_new_pokemon_ai.env.core import (
-    BattleCore,
-    ObservationManager,
     ActionManager,
-    TurnManager,
-    TurnType,
+    BattleCore,
+    BattleState,
     EpisodeManager,
-    SaveStateManager,
+    ObservationManager,
     PkmnTeamFactory,
+    SaveStateManager,
+    # TurnManager,
+    TurnType,
 )
 from rl_new_pokemon_ai.utils.logging import logger
 from gymnasium.spaces import Discrete
-import numpy as np
+import numpy.typing as npt
 
 from rich.console import Console
 from rich.table import Table
+
 
 class PkmnDayCare(AECEnv):
     """
@@ -41,18 +43,23 @@ class PkmnDayCare(AECEnv):
         self.core = battle_core
         self.observation_manager = ObservationManager(self.core)
         self.action_manager = ActionManager(self.core)
-        self.turn_manager = TurnManager(self.core, self.action_manager)
-        self.episode_manager = EpisodeManager()
+        # self.turn_manager = TurnManager(self.core, self.action_manager)
+        self.battle_state = BattleState()
+        # self.episode_manager = EpisodeManager()
         self.save_state_manager = SaveStateManager(self.core)
         self.team_factory = PkmnTeamFactory(PATHS["PKMN_CSV"], PATHS["MOVES_CSV"])
 
         # Environment configuration
         self.possible_agents = ["player", "enemy"]
         self.action_space_size = 10
+        self.observation: Dict[str, npt.NDArray[int] | None] = {
+            "agent": None,
+            "ennemy": None,
+        }
 
         self.terminations = {agent: False for agent in self.agents}
         self.rewards = {"player": 0.0, "enemy": 0.0}
-        self.steps_nb = 0
+        self.episode_steps = 0
         self.max_steps_per_episode = max_steps_per_episode  # Configurable
 
         # render console
@@ -104,31 +111,33 @@ class PkmnDayCare(AECEnv):
 
         # Reset managers
         self.rewards = {"player": 0.0, "enemy": 0.0}
-        self.total_steps = 0
-        self.episode_manager.reset_episode()
-        self.turn_manager.reset_battle_state()
+        self._cumulative_rewards = {"player": 0.0, "enemy": 0.0}
+        self.episode_steps = 0
         self.terminations = {agent: False for agent in self.agents}
 
-        # Reset team
-        turn = self.turn_manager.advance_to_next_turn()
-        if turn != TurnType.CREATE_TEAM:
-            raise RuntimeError("Expected to start with CREATE_TEAM turn")
-        player_team = self.team_factory.create_random_team(self.core)
-        enemy_team = self.team_factory.create_random_team(self.core)
+        # reset battle
+        self.battle_state = BattleState()
 
-        self.core.write_team_data("player", player_team)
-        self.core.write_team_data("enemy", enemy_team)
-        self.core.clear_stop_condition(turn)
+        # create new teams
+        teams = {
+            "player": self.team_factory.create_random_team(self.core),
+            "ennemy": self.team_factory.create_random_team(self.core),
+        }
+        self.core.write_team_data(teams)
 
-        # Advance to first turn
-        self.turn_manager.advance_to_next_turn()
-        # Get initial observations
-        self.observation_manager.get_observations()
+        # Advance to first turn to  get initial observations
+        self.core.advance_to_next_turn()
+        observations = self.observation_manager.get_observations()
 
-        # clean observations
+        # clean rendering
         self.console.clear()
 
-    def step(self, actions):
+        # Get dummy infos. Necessary for proper parallel_to_aec conversion
+        infos = {a: {} for a in self.agents}
+
+        return observations, infos
+
+    def step(self, actions: Dict[str, int]):
         """
         step(action) takes in an action for the current agent (specified by
         agent_selection) and needs to update
@@ -148,62 +157,46 @@ class PkmnDayCare(AECEnv):
             rewards: Rewards for each agent (placeholder)
             done: Whether the episode is finished
             info: Additional information
-
-
         """
-        # Execute actions
-        for agent in actions.keys():
-            self.action_manager.write_actions(agent,actions[agent])
-            stop_id = self.core.run_to_next_stop()
-            #TODO adapt this function to write actions for1 agent at the time or just send all actions ???
 
-
-        # Check termination conditions
-        if (
-            self.turn_manager.is_battle_done()
-            or self.max_steps_per_episode > self.total_steps
-        ):
-            terminations = {agent: True for agent in self.agents}
-
-        # Get observations
         # Get dummy infos (not used in this example)
         # Validate actions
         for agent, action in actions.items():
             if not self.action_manager.is_valid_action(action):
                 raise ValueError(f"Invalid action {action} for agent {agent}")
 
-        # Process turn
         # Write actions
-        self.action_manager.write_actions(self.state.current_turn, actions)
+        self.action_manager.write_actions(self.battle_state.current_turn, actions)
+        self.core.clear_stop_condition(self.battle_state.current_turn)
+        self.battle_state.current_turn = self.core.advance_to_next_turn()
 
-        # Clear stop condition to continue
-        self.core.clear_stop_condition(self.state.current_turn)
+        # Check termination conditions
+        # TODO : DEFINE TRUCATIONS & TERMINATIONS
+        if (
+            self.battle_state.is_battle_done()
+            or self.max_steps_per_episode < self.episode_steps
+        ):
+            terminations = {agent: True for agent in self.agents}
 
-
-        if turn_completed:
-            # Advance to next turn
-            self.turn_manager.advance_to_next_turn()
-
-        # Get new observations
-        observations = self.observation_manager.get_observations()
+        # Get observations
+        self.observation = self.observation_manager.get_observations()
 
         # Calculate rewards (placeholder)
-        rewards = {"player": 0.0, "enemy": 0.0}
+        self.rewards = {"player": 0.0, "enemy": 0.0}
+        self._cumulative_rewards += self.rewards
 
-        self.steps_nb += 1
-
-        # Update episode
-        self.episode_manager.update_episode(rewards)
+        self.episode_steps += 1
 
         # Prepare info
-        info = {
-            "current_turn": self.turn_manager.get_current_turn(),
-            "battle_done": battle_done,
-            "episode_info": self.episode_manager.get_episode_info(),
+        infos= {
+            "current_turn": self.battle_state.get_current_turn(),
+            "battle_done": self.battle_state.is_battle_done(),
+            "ste_rewards": self.rewards,
+            "episode_steps": self.episode_steps,
+            "max_allowed_steps": self.max_steps_per_episode ,
         }
 
-        return observations, rewards, termination, info
-
+        return observations, rewards, terminations, truncations, infos
 
     def render(self):
         """
@@ -292,7 +285,7 @@ class PkmnDayCare(AECEnv):
         at any time after reset() is called.
         """
         # observation of one agent is the previous state of the other
-        return self.observation_manager.get_observations()
+        return self.observation_manager.get_observations()[agent]
 
     # Observation space should be defined here.
     # lru_cache allows observation and action spaces to be memoized, reducing clock cycles required to get each agent's space.

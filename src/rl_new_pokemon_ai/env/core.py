@@ -52,15 +52,22 @@ class BattleState:
 
     current_step: int = 0
     episode_done: bool = False
-    current_turn: Optional[TurnType] = None
+    current_turn: TurnType = TurnType.CREATE_TEAM
     waiting_for_action: bool = False
     episode_steps: int = 0
-    pending_actions: Dict[str, Optional[int]] = None
+    pending_actions: Dict[str, Optional[int]] = {"player": -1, "agent": -1}
 
     def __post_init__(self):
         if self.pending_actions is None:
             self.pending_actions = {"player": None, "enemy": None}
 
+    def is_battle_done(self) -> bool:
+        """Check if battle is finished"""
+        return self.current_turn == TurnType.DONE
+
+    def get_current_turn(self) -> TurnType:
+        """Get current turn type"""
+        return self.current_turn
 
 class BattleCore:
     """
@@ -95,6 +102,9 @@ class BattleCore:
         }
 
         self.addrs: Dict[str, int] = {}
+
+        self.curr_stop_id = 0
+        self.curr_turn_type = TurnType.CREATE_TEAM
 
         if setup:
             self.setup_addresses()
@@ -160,7 +170,7 @@ class BattleCore:
         """Add a stop address to the GBA emulator"""
         self.gba.add_stop_addr(addr, size, read, name, stop_id)
 
-    def run_to_next_stop(self, max_steps=2000000) -> int:
+    def run_to_next_stop(self, max_steps=2000000) -> TurnType:
         """Run the emulator until we hit a stop condition"""
         stop_id = self.gba.run_to_next_stop(self.steps)
 
@@ -171,13 +181,20 @@ class BattleCore:
                 raise TimeoutError(
                     "Reached maximum steps without hitting a stop condition"
                 )
-            stop_id = self.gba.run_to_next_stop(self.steps)
+            self.curr_stop_id = self.gba.run_to_next_stop(self.steps)
+            self.curr_turn_type = self.stop_ids[self.curr_stop_id]
+        return self.curr_turn_type
 
-        return stop_id
+    def advance_to_next_turn(self) -> TurnType:
+        """Advance to the next turn"""
+        return self.run_to_next_stop()
 
-    def get_turn_type(self, stop_id: int) -> TurnType:
+    def get_turn_type(self, stop_id: int | None = None) -> TurnType:
         """Convert stop ID to turn type"""
-        return self.stop_ids.get(stop_id, TurnType.DONE)
+        if stop_id is not None:
+            return self.stop_ids.get(stop_id, TurnType.DONE)
+        else:
+            self.stop_ids.get(self.curr_stop_id, TurnType.DONE)
 
     def read_team_data(self, agent: str) -> List[int]:
         """Read team data for specified agent"""
@@ -211,14 +228,16 @@ class BattleCore:
         elif turn_type == TurnType.DONE:
             self.gba.write_u16(self.addrs["stopHandleTurnEnd"], 0)
 
-    def write_team_data(self, agent: str, data: List[int]):
+    def write_team_data(self, teams_data: Dict[str, List[int]]):
         """Write team data for specified agent"""
-        if agent == "player":
-            self.gba.write_u32_list(self.addrs["playerTeam"], data)
-        elif agent == "enemy":
-            self.gba.write_u32_list(self.addrs["enemyTeam"], data)
-        else:
-            raise ValueError(f"Unknown agent: {agent}")
+        for agent, team in teams_data.items():
+            if agent not in ["player", "ennemy"]:
+                raise ValueError(
+                    f'Error: write_team_data : Invalid agent, expected either "player" or "ennemy", got "{agent}".'
+                )
+                self.gba.write_u32_list(self.addrs[f"{agent}Team"], team)
+        self.clear_stop_condition(TurnType.CREATE_TEAM)
+        return
 
     def save_savestate(self, name: Path) -> Path:
         """Save the current state of the emulator"""
@@ -282,7 +301,7 @@ class ObservationManager:
           2. For each move: include id, pp info, and extra move stats.
           3. Concatenate into a flat observation array for the agent.
         """
-        observations : Dict[str, np.ndarray | None]= {"player": None, "enemy": None}
+        observations: Dict[str, np.ndarray | None] = {"player": None, "enemy": None}
 
         # Pre-index moves_df by id for O(1) lookups
         moves_df = PkmnTeamFactory.moves.set_index("id").drop(columns=["moveName"])
@@ -291,38 +310,56 @@ class ObservationManager:
         for agent in observations.keys():
             # Split raw team data into 6 Pokémon entries
             raw_data_list = np.split(
-                np.array(self.battle_core.read_team_data(agent), dtype=int),  # force int dtype
-                indices_or_sections=6
+                np.array(
+                    self.battle_core.read_team_data(agent), dtype=int
+                ),  # force int dtype
+                indices_or_sections=6,
             )
-            raw_data: list[np.ndarray] = [np.array(chunk, dtype=int) for chunk in raw_data_list]  # explicit cast for mypy
+            raw_data: list[np.ndarray] = [
+                np.array(chunk, dtype=int) for chunk in raw_data_list
+            ]  # explicit cast for mypy
 
             agent_data = np.array([])
 
             for raw_pkmn in raw_data:
                 # Core Pokémon attributes
-                core_data = np.concatenate([
-                    [raw_pkmn[self.RAW_DATA_IDX["is_active"]]],
-                    raw_pkmn[self.RAW_DATA_IDX["stats_begin"]:self.RAW_DATA_IDX["stats_end"]],
-                    raw_pkmn[self.RAW_DATA_IDX["ability"]:self.RAW_DATA_IDX["status_2"]],
-                ])
+                core_data = np.concatenate(
+                    [
+                        [raw_pkmn[self.RAW_DATA_IDX["is_active"]]],
+                        raw_pkmn[
+                            self.RAW_DATA_IDX["stats_begin"] : self.RAW_DATA_IDX[
+                                "stats_end"
+                            ]
+                        ],
+                        raw_pkmn[
+                            self.RAW_DATA_IDX["ability"] : self.RAW_DATA_IDX["status_2"]
+                        ],
+                    ]
+                )
 
                 # Moves data (id, pp, stats)
                 moves_id = raw_pkmn[7:11]
-                moves_data = np.concatenate([
-                    np.concatenate([
-                        [move_id],
-                        [moves_dict[move_id][0]],   # max_pp from first col of stored row
-                        [raw_pkmn[self.RAW_DATA_IDX["PP_begin"] + i]],
-                        moves_dict[move_id][1:],    # the rest of stats
-                    ])
-                    for i, move_id in enumerate(moves_id) if move_id in moves_dict
-                ])
+                moves_data = np.concatenate(
+                    [
+                        np.concatenate(
+                            [
+                                [move_id],
+                                [
+                                    moves_dict[move_id][0]
+                                ],  # max_pp from first col of stored row
+                                [raw_pkmn[self.RAW_DATA_IDX["PP_begin"] + i]],
+                                moves_dict[move_id][1:],  # the rest of stats
+                            ]
+                        )
+                        for i, move_id in enumerate(moves_id)
+                        if move_id in moves_dict
+                    ]
+                )
 
                 # Merge into agent array
                 agent_data = np.concatenate([agent_data, core_data, moves_data])
 
         return observations
-     
 
     def get_observation_space_size(self) -> int:
         """Get the size of the observation space (to be implemented)"""
@@ -342,18 +379,17 @@ class ActionManager:
         """Check if action is valid (simplified version)"""
         return 0 <= action <= 9
 
+    def check_agent_match_turntype(agent, turn_type) -> bool:
+        return (
+            agent == "player" and turn_type in [TurnType.PLAYER, TurnType.GENERAL]
+        ) or (agent == "enemy" and turn_type in [TurnType.ENEMY, TurnType.GENERAL])
+
     def write_actions(self, turn_type: TurnType, actions: Dict[str, int]):
         """Write actions based on turn type"""
-        if turn_type == TurnType.PLAYER and "player" in actions:
-            self.battle_core.write_action("player", actions["player"])
-        elif turn_type == TurnType.ENEMY and "enemy" in actions:
-            self.battle_core.write_action("enemy", actions["enemy"])
-        elif turn_type == TurnType.GENERAL:
-            # Handle simultaneous actions
-            if "player" in actions:
-                self.battle_core.write_action("player", actions["player"])
-            if "enemy" in actions:
-                self.battle_core.write_action("enemy", actions["enemy"])
+        for agent , action in actions.items():
+            if not self.check_agent_match_turntype(agent, turn_type):
+                raise ValueError(f"Error : write_actions : invalid agent, expected \"player\" or \"enemy\", got {agent}")
+            self.battle_core.write_action(agent, actions[agent])
 
     def get_legal_actions(self, agent: str) -> List[int]:
         match agent:
@@ -383,75 +419,55 @@ class ActionManager:
         return valid_moves + valid_switches
 
 
-class TurnManager:
-    """
-    Manages turn logic and coordination between agents.
-    """
+# class TurnManager:
+#     """
+#     Manages turn logic and coordination between agents.
+#     """
 
-    def __init__(self, battle_core: BattleCore, action_manager: ActionManager):
-        self.battle_core = battle_core
-        self.action_manager = action_manager
-        self.state = BattleState()
+#     def __init__(self, battle_core: BattleCore, action_manager: ActionManager):
+#         self.battle_core = battle_core
+#         self.action_manager = action_manager
+#         self.state = BattleState()
 
-    def process_turn(self, actions: Dict[str, int]) -> bool:
-        """
-        Process a turn with given actions.
-        Returns True if turn was completed, False if waiting for more actions.
-        """
-        if self.state.current_turn == TurnType.DONE:
-            return True
-        
-        # Check if we have all required actions
-        required_agents = self.get_required_agents()
-        if not all(agent in actions for agent in required_agents):
-            return False
+# def process_turn(self, actions: Dict[str, int]) -> bool:
+#     """
+#     Process a turn with given actions.
+#     Returns True if turn was completed, False if waiting for more actions.
+#     """
+#     if self.state.current_turn == TurnType.DONE:
+#         return True
 
-        # Write actions
-        self.action_manager.write_actions(self.state.current_turn, actions)
+#     # Check if we have all required actions
+#     required_agents = self.get_required_agents()
+#     if not all(agent in actions for agent in required_agents):
+#         return False
 
-        # Clear stop condition to continue
-        self.battle_core.clear_stop_condition(self.state.current_turn)
+#     # Write actions
+#     self.action_manager.write_actions(self.state.current_turn, actions)
 
-        # Reset pending actions
-        self.state.pending_actions = {"player": None, "enemy": None}
-        self.state.waiting_for_action = False
+#     # Clear stop condition to continue
+#     self.battle_core.clear_stop_condition(self.state.current_turn)
 
-        return True
+#     return True
 
-    def advance_to_next_turn(self) -> TurnType:
-        """Advance to the next turn"""
-        stop_id = self.battle_core.run_to_next_stop()
-        self.state.current_turn = self.battle_core.get_turn_type(stop_id)
-        self.state.waiting_for_action = True
-        self.state.current_step += 1
+# def advance_to_next_turn(self) -> TurnType:
+#     """Advance to the next turn"""
+#     stop_id = self.battle_core.run_to_next_stop()
+#     self.state.current_turn = self.battle_core.get_turn_type(stop_id)
 
-        return self.state.current_turn
+#     return self.state.current_turn
 
-    def get_required_agents(self) -> List[str]:
-        """Get list of agents required for current turn"""
-        match self.state.current_turn :
-            case TurnType.GENERAL:
-                return ["player", "enemy"]
-            case TurnType.PLAYER:
-                return ["player"]
-            case TurnType.ENEMY:
-                return ["enemy"]
-            case _:
-                return []
-
-    def is_battle_done(self) -> bool:
-        """Check if battle is finished"""
-        return self.state.current_turn == TurnType.DONE
-
-    def get_current_turn(self) -> TurnType:
-        """Get current turn type"""
-        return self.state.current_turn
-
-    def reset_battle_state(self) -> None:
-        """
-        Resets Battle state, used to restart a fight.
-        """
-        self.state = BattleState()
+# def get_required_agents(self) -> List[str]:
+#     """Get list of agents required for current turn"""
+#     match self.state.current_turn :
+#         case TurnType.GENERAL:
+#             return ["player", "enemy"]
+#         case TurnType.PLAYER:
+#             return ["player"]
+#         case TurnType.ENEMY:
+#             return ["enemy"]
+#         case _:
+#             return []
 
 
 class EpisodeManager:
@@ -571,16 +587,19 @@ class PkmnTeamFactory:
         return team
 
     @staticmethod
-    def is_valid_id(id:int):
+    def is_valid_id(id: int):
         if not 1 <= id <= 411:
-                raise ValueError(f"Trying to get a pkmn name from an invalid ID. Id must be comprised within [1;411], got {id}")
+            raise ValueError(
+                f"Trying to get a pkmn name from an invalid ID. Id must be comprised within [1;411], got {id}"
+            )
 
-    def get_pokemon_rows(self, ids : List[int]):
+    def get_pokemon_rows(self, ids: List[int]):
         # error checking
         [PkmnTeamFactory.is_valid_id(id) for id in ids]
         # computation
         return self.pkmn["id" in ids]
-            
+
+
 class PokemonRLCore:
     """
     Main class that coordinates all components.
@@ -602,96 +621,96 @@ class PokemonRLCore:
         self.agents = ["player", "enemy"]
         self.action_space_size = 10
 
-    def reset(
-        self, save_state: Optional[Path] = Path("state_before_create_team")
-    ) -> Dict[str, pd.DataFrame]:
-        """Reset the environment"""
-        # Load save state if provided
-        if save_state is not None and self.save_state_manager.has_state(save_state):
-            loaded = self.save_state_manager.load_state(save_state)
-            if not loaded:
-                raise RuntimeError(f"Failed to load save state: {save_state}")
-        else:
-            self.episode_manager.reset_episode()
-            self.turn_manager.state = BattleState()
-            turn = self.turn_manager.advance_to_next_turn()
-            if turn != TurnType.CREATE_TEAM:
-                raise RuntimeError("Expected to start with CREATE_TEAM turn")
+    # def reset(
+    #     self, save_state: Optional[Path] = Path("state_before_create_team")
+    # ) -> Dict[str, pd.DataFrame]:
+    #     """Reset the environment"""
+    #     # Load save state if provided
+    #     if save_state is not None and self.save_state_manager.has_state(save_state):
+    #         loaded = self.save_state_manager.load_state(save_state)
+    #         if not loaded:
+    #             raise RuntimeError(f"Failed to load save state: {save_state}")
+    #     else:
+    #         self.episode_manager.reset_episode()
+    #         self.turn_manager.state = BattleState()
+    #         turn = self.turn_manager.advance_to_next_turn()
+    #         if turn != TurnType.CREATE_TEAM:
+    #             raise RuntimeError("Expected to start with CREATE_TEAM turn")
 
-            self.save_state_manager.save_state(save_state)
+    #         self.save_state_manager.save_state(save_state)
 
-        # Reset managers
-        self.episode_manager.reset_episode()
-        self.turn_manager.state = BattleState()
+    #     # Reset managers
+    #     self.episode_manager.reset_episode()
+    #     self.turn_manager.state = BattleState()
 
-        # Reset team
-        turn = self.turn_manager.advance_to_next_turn()
+    #     # Reset team
+    #     turn = self.turn_manager.advance_to_next_turn()
 
-        if turn == TurnType.CREATE_TEAM:
-            player_team = self._create_random_team(PATHS["PKMN_CSV"])
-            enemy_team = self._create_random_team(PATHS["PKMN_CSV"])
+    #     if turn == TurnType.CREATE_TEAM:
+    #         player_team = self._create_random_team(PATHS["PKMN_CSV"])
+    #         enemy_team = self._create_random_team(PATHS["PKMN_CSV"])
 
-            self.battle_core.write_team_data("player", player_team)
-            self.battle_core.write_team_data("enemy", enemy_team)
-            self.battle_core.clear_stop_condition(turn)
+    #         self.battle_core.write_team_data("player", player_team)
+    #         self.battle_core.write_team_data("enemy", enemy_team)
+    #         self.battle_core.clear_stop_condition(turn)
 
-        else:
-            raise RuntimeError("Expected to start with CREATE_TEAM turn")
+    #     else:
+    #         raise RuntimeError("Expected to start with CREATE_TEAM turn")
 
-        # Advance to first turn
-        self.turn_manager.advance_to_next_turn()
+    #     # Advance to first turn
+    #     self.turn_manager.advance_to_next_turn()
 
-        # Get initial observations
-        return self.observation_manager.get_observations()
+    #     # Get initial observations
+    #     return self.observation_manager.get_observations()
 
-    def step(
-        self, actions: Dict[str, int]
-    ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, float], bool, Dict[str, Any]]:
-        """
-        Execute one step in the environment.
+    # def step(
+    #     self, actions: Dict[str, int]
+    # ) -> Tuple[Dict[str, pd.DataFrame], Dict[str, float], bool, Dict[str, Any]]:
+    #     """
+    #     Execute one step in the environment.
 
-        Args:
-            actions: Dictionary of actions for each agent
+    #     Args:
+    #         actions: Dictionary of actions for each agent
 
-        Returns:
-            observations: New observations for each agent
-            rewards: Rewards for each agent (placeholder)
-            done: Whether the episode is finished
-            info: Additional information
-        """
-        # Validate actions
-        for agent, action in actions.items():
-            if not self.action_manager.is_valid_action(action):
-                raise ValueError(f"Invalid action {action} for agent {agent}")
+    #     Returns:
+    #         observations: New observations for each agent
+    #         rewards: Rewards for each agent (placeholder)
+    #         done: Whether the episode is finished
+    #         info: Additional information
+    #     """
+    #     # Validate actions
+    #     for agent, action in actions.items():
+    #         if not self.action_manager.is_valid_action(action):
+    #             raise ValueError(f"Invalid action {action} for agent {agent}")
 
-        # Process turn
-        turn_completed = self.turn_manager.process_turn(actions)
+    #     # Process turn
+    #     turn_completed = self.turn_manager.process_turn(actions)
 
-        if turn_completed:
-            # Advance to next turn
-            self.turn_manager.advance_to_next_turn()
+    #     if turn_completed:
+    #         # Advance to next turn
+    #         self.turn_manager.advance_to_next_turn()
 
-        # Get new observations
-        observations = self.observation_manager.get_observations()
+    #     # Get new observations
+    #     observations = self.observation_manager.get_observations()
 
-        # Calculate rewards (placeholder)
-        rewards = {"player": 0.0, "enemy": 0.0}
+    #     # Calculate rewards (placeholder)
+    #     rewards = {"player": 0.0, "enemy": 0.0}
 
-        # Check if episode is done
-        battle_done = self.turn_manager.is_battle_done()
-        episode_done = self.episode_manager.is_episode_done(battle_done)
+    #     # Check if episode is done
+    #     battle_done = self.turn_manager.is_battle_done()
+    #     episode_done = self.episode_manager.is_episode_done(battle_done)
 
-        # Update episode
-        self.episode_manager.update_episode(rewards)
+    #     # Update episode
+    #     self.episode_manager.update_episode(rewards)
 
-        # Prepare info
-        info = {
-            "current_turn": self.turn_manager.get_current_turn(),
-            "battle_done": battle_done,
-            "episode_info": self.episode_manager.get_episode_info(),
-        }
+    #     # Prepare info
+    #     info = {
+    #         "current_turn": self.turn_manager.get_current_turn(),
+    #         "battle_done": battle_done,
+    #         "episode_info": self.episode_manager.get_episode_info(),
+    #     }
 
-        return observations, rewards, episode_done, info
+    #     return observations, rewards, episode_done, info
 
     def get_current_turn_type(self) -> TurnType:
         """Get current turn type"""
@@ -740,7 +759,7 @@ class PokemonRLCore:
         print(f"Created random team: {team}")
         return team
 
-    def render(self, observations: Dict[str, pd.DataFrame] ):
+    def render(self, observations: Dict[str, pd.DataFrame]):
         """
         Render the current state of the battle using the rich library.
 
