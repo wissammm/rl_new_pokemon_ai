@@ -170,7 +170,7 @@ class BattleCore:
         """Add a stop address to the GBA emulator"""
         self.gba.add_stop_addr(addr, size, read, name, stop_id)
 
-    def run_to_next_stop(self, max_steps=2000000) -> TurnType:
+    def run_to_next_stop(self, max_steps=2000000) -> int:
         """Run the emulator until we hit a stop condition"""
         stop_id = self.gba.run_to_next_stop(self.steps)
 
@@ -182,12 +182,12 @@ class BattleCore:
                     "Reached maximum steps without hitting a stop condition"
                 )
             self.curr_stop_id = self.gba.run_to_next_stop(self.steps)
-            self.curr_turn_type = self.stop_ids[self.curr_stop_id]
-        return self.curr_turn_type
+            
+        return self.curr_stop_id
 
     def advance_to_next_turn(self) -> TurnType:
         """Advance to the next turn"""
-        return self.run_to_next_stop()
+        return self.stop_ids[self.run_to_next_stop()]
 
     def get_turn_type(self, stop_id: int | None = None) -> TurnType:
         """Convert stop ID to turn type"""
