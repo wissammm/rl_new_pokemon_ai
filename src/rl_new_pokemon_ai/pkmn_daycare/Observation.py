@@ -10,6 +10,8 @@ import numpy as np
 
 AgentObs = npt.NDArray[int]
 
+NB_PARAM_OBS = 69
+
 @dataclass
 class Observation:
     """
@@ -139,9 +141,6 @@ class ObservationFactory:
                 ),  # force int dtype
                 indices_or_sections=6,
             )
-            raw_data: list[np.ndarray] = [
-                np.array(chunk, dtype=int) for chunk in raw_data_list
-            ]  # explicit cast for mypy
 
             agent_data = np.array([])
 
