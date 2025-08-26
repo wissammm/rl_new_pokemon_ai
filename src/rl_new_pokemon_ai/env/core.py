@@ -183,6 +183,8 @@ class BattleCore:
                 )
             self.curr_stop_id = self.gba.run_to_next_stop(self.steps)
             
+        self.curr_turn_type = self.stop_ids[self.curr_stop_id ]
+        self.clear_stop_condition(self.curr_turn_type)
         return self.curr_stop_id
 
     def advance_to_next_turn(self) -> TurnType:
