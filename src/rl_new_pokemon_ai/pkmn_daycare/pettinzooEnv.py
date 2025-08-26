@@ -172,6 +172,7 @@ class PkmnDayCare(AECEnv):
 
         # Check termination conditions
         # TODO : DEFINE TRUCATIONS & TERMINATIONS
+        # TODO : EXTRACT BATTLECORE TESTS
         if (
             self.battle_state.is_battle_done()
             or self.max_steps_per_episode < self.episode_steps
