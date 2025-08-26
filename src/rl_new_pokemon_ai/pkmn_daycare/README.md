@@ -30,50 +30,35 @@ Pokemons are described in 35 values by the game :
 | 7  |   SPEED                                  | 
 | 8  |   SPATK                                  | 
 | 9  |   SPDEF                                  | 
-|    | IV                                       |
-| 10  |   HP                                     | 
-| 11 |   ATK                                    | 
-| 12 |   DEF                                    | 
-| 13 |   SPEED                                  | 
-| 14 |   SPATK                                  | 
-| 15 |   SPDEF                                  | 
-| 16 |   SPDEF                                  | 
-| 17 | ABILITY                                  | 
-| 18 | ABILITY(placeholder)                     | 
-| 19 | SPECIE_1 (deduced from SPECIES attribute)| 
-| 20 | SPECIE_2 (deduced from SPECIES attribute)| 
+| 10 | ABILITY                                  | 
+| 11 | ABILITY(placeholder)                     | 
+| 12 | SPECIE_1 (deduced from SPECIES attribute)| 
+| 13 | SPECIE_2 (deduced from SPECIES attribute)| 
 |    | STATUS                                   | 
-| 21 |   HP                                     | 
-| 22 |   LEVEL                                  | 
-| 23 |   FRIENDSHIP                             | 
-| 24 |   MAX_HP                                 | 
-| 25 |   HELD_ITEM                              | 
-| 26 |   PP_BONUSES                             |
-| 27 |   PERSONALITY                            | 
-| 28 |   STATUS_1                               | 
-| 29 |   STATUS_2                               | 
-| 30 |   STATUS_3                               | 
+| 14 |   HP                                     | 
+| 15 |   LEVEL                                  | 
+| 16 |   FRIENDSHIP                             | 
+| 17 |   MAX_HP                                 | 
+| 18 |   HELD_ITEM                              | 
+| 19 |   PP_BONUSES                             |
+| 20 |   PERSONALITY                            | 
+| 21 |   STATUS_1                               | 
+| 22 |   STATUS_2                               | 
+| 23 |   STATUS_3                               | 
 |    | MOVE_1                                   |
-| 31 |   ID                                     | 
-| 32 |   PP                                     | 
+| 24 |   ID                                     | 
+| 25 |   PP                                     | 
 |    | MOVE_2                                   |
-| 33 |   ID                                     | 
-| 34 |   PP                                     | 
+| 26 |   ID                                     | 
+| 27 |   PP                                     | 
 |    | MOVE_3                                   |
-| 35 |   ID                                     | 
-| 36 |   PP                                     | 
+| 28 |   ID                                     | 
+| 29 |   PP                                     | 
 |    | MOVE_4                                   |
-| 37 |   ID                                     | 
-| 38 |   PP                                     | 
+| 30 |   ID                                     | 
+| 31 |   PP                                     | 
 
                           
-
-
-
-
-
-
-
 
 
 
