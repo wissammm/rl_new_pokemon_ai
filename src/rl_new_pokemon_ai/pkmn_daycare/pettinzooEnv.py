@@ -207,6 +207,12 @@ class PkmnDayCare(AECEnv):
             observations: Dictionary containing observation DataFrames for 'player' and 'enemy'.
             csv_path: Path to the CSV file containing Pokémon data.
         """
+        # Rendering : 3 options :
+        # 1. print images of the game
+        #    check Example in project root to see use of gba display and have a nice render
+        # 2. Just printing status of each party
+        # 3. No redering for faster computation
+        
         # Create a table with two columns: Player and Enemy
         table = Table(
             title="Battle State", show_header=True, header_style="bold magenta"
