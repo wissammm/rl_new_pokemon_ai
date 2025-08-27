@@ -160,41 +160,6 @@ class PokemonRLCore:
         """Check if environment is waiting for actions"""
         return self.turn_manager.state.waiting_for_action
 
-    def _create_random_team(self, csv: str) -> List[int]:
-        """
-        Create a random team from the provided CSV file.
-
-        Args:
-            csv: Path to the CSV file containing Pokémon data
-
-        Returns:
-            List[int]: A flat list of integers representing the team in the format:
-                    [id, level, move0, move1, move2, move3, ...]
-        """
-        df = pd.read_csv(csv)
-        df = df[df["id"] != 0]
-        random_species_list = df.sample(n=6)
-
-        # Define item ranges
-        item_range_1 = list(range(225, 178, -1))
-        item_range_2 = list(range(175, 132, -1))
-        all_items = item_range_1 + item_range_2
-
-        team = []
-        for _, random_species in random_species_list.iterrows():
-            moves_list = eval(random_species["moves"])
-            random_moves = random.sample(moves_list, min(len(moves_list), 4))
-            while len(random_moves) < 4:
-                random_moves.append(0)
-            hp_percent = 100
-            item_id = random.choice(all_items)
-            team.extend(
-                [random_species["id"], 10] + random_moves + [hp_percent, item_id]
-            )
-
-        print(f"Created random team: {team}")
-        return team
-
     def render(self, observations: Dict[str, pd.DataFrame], csv_path: str):
         """
         Render the current state of the battle using the rich library.

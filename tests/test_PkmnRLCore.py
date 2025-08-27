@@ -1,9 +1,16 @@
 from pkmn_rl_arena.env.pokemon_rl_core import PokemonRLCore
 from pkmn_rl_arena.env.battle_state import TurnType
+from pkmn_rl_arena.env.pkmn_team_factory import PkmnTeamFactory
 import pkmn_rl_arena.data.parser
 import pkmn_rl_arena.data.pokemon_data
 
-from pkmn_rl_arena import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH
+from pkmn_rl_arena import (
+    ROM_PATH,
+    BIOS_PATH,
+    MAP_PATH,
+    POKEMON_CSV_PATH,
+    MOVES_CSV_PATH,
+)
 import unittest
 import sys
 import os
@@ -25,9 +32,9 @@ class TestPokemonRLCore(unittest.TestCase):
         self.assertEqual(turn, TurnType.CREATE_TEAM)
 
     def test_create_team(self):
-        player_team = self.core._create_random_team(POKEMON_CSV_PATH)
-
-        enemy_team = self.core._create_random_team(POKEMON_CSV_PATH)
+        team_factory = PkmnTeamFactory(POKEMON_CSV_PATH, MOVES_CSV_PATH)
+        player_team = team_factory.create_random_team()
+        enemy_team = team_factory.create_random_team()
 
         turn = self.core.turn_manager.advance_to_next_turn()
         self.assertEqual(turn, TurnType.CREATE_TEAM)
