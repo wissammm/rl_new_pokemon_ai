@@ -1,8 +1,9 @@
 import re
+from typing import Dict
 
 class MapAnalyzer:
     def __init__(self, map_file):
-        self.symbols = {}
+        self.symbols : Dict[str , int]= {}
         self._parse(map_file)
     
     def _parse(self, map_file):
@@ -15,6 +16,6 @@ class MapAnalyzer:
                     addr, symbol = match.groups()
                     self.symbols[symbol] = addr
     
-    def get_address(self, symbol):
+    def get_address(self, symbol) -> int | None :
         return self.symbols.get(symbol)
     

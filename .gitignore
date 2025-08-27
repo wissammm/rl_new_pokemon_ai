@@ -17,3 +17,16 @@ dist/
 build/
 __pycache__/
 data/data_scrap_from_mgba
+
+# export tests data
+fc2.onnx
+fc2_quant.onnx
+fused_gemm_relu_model.onnx
+three_relu_only.onnx
+tests/test_export_data/gba/include/_matmul_*
+tests/test_export_data/gba/include/forward.h
+tests/test_export_data/gba/source/forward.c
+tests/test_export_data/include/_matmul_*
+tests/test_export_data/include/forward.h
+tests/test_export_data/source/forward.c
+
