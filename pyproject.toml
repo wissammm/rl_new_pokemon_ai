@@ -13,7 +13,8 @@ dependencies = [
     "onnxruntime",
     "rich",
     "maturin",
-    "picologging>=0.9.3",
+    "pettingzoo>=1.25.0",
+    "gymnasium>=1.2.0",
 ]
 
 [tool.setuptools]
