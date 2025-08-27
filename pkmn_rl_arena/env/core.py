@@ -14,11 +14,11 @@ import shutil
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.insert(0, project_root)
 
-from src import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
+from pkmn_rl_arena import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
 
 import rustboyadvance_py
-import src.data.parser
-import src.data.pokemon_data
+import pkmn_rl_arena.data.parser
+import pkmn_rl_arena.data.pokemon_data
 
 random.seed(124)
 
@@ -73,7 +73,7 @@ class BattleCore:
         self.map_path = map_path
         self.steps = steps
         # Initialize parser and GBA emulator
-        self.parser = src.data.parser.MapAnalyzer(map_path)
+        self.parser = pkmn_rl_arena.data.parser.MapAnalyzer(map_path)
         self.gba = rustboyadvance_py.RustGba()
         self.gba.load(bios_path, rom_path)
         
@@ -216,8 +216,8 @@ class ObservationManager:
         enemy_data = self.battle_core.read_team_data('enemy')
         
         # Convert to pandas DataFrames
-        observations['player'] = src.data.pokemon_data.to_pandas_team_dump_data(player_data)
-        observations['enemy'] = src.data.pokemon_data.to_pandas_team_dump_data(enemy_data)
+        observations['player'] = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(player_data)
+        observations['enemy'] = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(enemy_data)
         
         return observations
     

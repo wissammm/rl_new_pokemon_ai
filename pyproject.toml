@@ -1,8 +1,8 @@
 [project]
-name = "rl_new_pokemon_ai"
+name = "pkmn_rl_arena"
 version = "0.1.0"
-description = "Reinforcement learning and exporting neural networks"
-authors = [{ name = "Wissam Boussella", email = "wissamboussella@gmail.com" }]
+description = "Reinforcement learning and exporting neural networks on pokemon emerald to flash a game card. Yes we run AI on a Game Boy Advance."
+authors = [{ name = "Wissam Boussella", email = "wissamboussella@gmail.com" },{ name = "Grégoire Kubler", email = "greg_is_kub@pm.me" }]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
@@ -16,4 +16,4 @@ dependencies = [
 ]
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "pkmn_rl_arena"}

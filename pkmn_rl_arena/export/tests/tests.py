@@ -19,16 +19,16 @@ import torch.nn.functional as F
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.insert(0, project_root)
 
-from src.env.core import BattleCore
+from pkmn_rl_arena.env.core import BattleCore
 import rustboyadvance_py
-import src.data.parser
-import src.data.pokemon_data
+import pkmn_rl_arena.data.parser
+import pkmn_rl_arena.data.pokemon_data
 import jinja2
 
 from typing import List, Any, Union
 
 from export.onnx_exporter import ONNXExporter
-from src import BIOS_PATH, MAP_PATH
+from pkmn_rl_arena import BIOS_PATH, MAP_PATH
 
 def launch_makefile():
     makefile_path = os.path.join(os.path.dirname(__file__), 'gba', 'Makefile')
@@ -100,7 +100,7 @@ def setup_gba_environment(rom_path, map_path):
     """Setup GBA environment and return necessary objects."""
     gba = rustboyadvance_py.RustGba()
     gba.load(BIOS_PATH, rom_path)
-    parser = src.data.parser.MapAnalyzer(map_path)
+    parser = pkmn_rl_arena.data.parser.MapAnalyzer(map_path)
     addr_write, addr_read = setup_stop_addr(parser, gba)
     
     output_addr = int(parser.get_address("output"), 16)

@@ -7,12 +7,12 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../'))
 sys.path.insert(0, project_root)
 
-from src.env.core import PokemonRLCore, TurnType
+from pkmn_rl_arena.env.core import PokemonRLCore, TurnType
 import rustboyadvance_py
-import src.data.parser
-import src.data.pokemon_data
+import pkmn_rl_arena.data.parser
+import pkmn_rl_arena.data.pokemon_data
 
-from src import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
+from pkmn_rl_arena import ROM_PATH, BIOS_PATH, MAP_PATH, POKEMON_CSV_PATH, SAVE_PATH
 
 MAIN_STEPS = 64000
 
@@ -63,8 +63,8 @@ class TestPokemonRLCore(unittest.TestCase):
         player_team_dump_data = self.core.battle_core.read_team_data('player')
         enemy_team_dump_data = self.core.battle_core.read_team_data('enemy')
 
-        playerdf = src.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
-        enemydf = src.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
+        playerdf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
+        enemydf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
 
         for i in range(6):
             start = i * 8
@@ -125,7 +125,7 @@ class TestPokemonRLCore(unittest.TestCase):
 
         turn = self.core.turn_manager.advance_to_next_turn()
         enemy_team_dump_data = self.core.battle_core.read_team_data('enemy')
-        enemydf = src.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
+        enemydf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
         #Print Hp of enemy POkemon active
         active_enemy = enemydf[enemydf['isActive'] == 1]
         enemy_updated_hp = active_enemy.iloc[0]['current_hp']
@@ -179,8 +179,8 @@ class TestPokemonRLCore(unittest.TestCase):
         enemy_team_dump_data = self.core.battle_core.read_team_data('enemy')
         self.assertEqual(turn, TurnType.GENERAL)
 
-        playerdf = src.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
-        enemydf = src.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
+        playerdf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
+        enemydf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
         active_enemy = enemydf[enemydf['isActive'] == 1]
         print(enemydf)
         self.assertEqual(len(active_enemy), 1, "There should be exactly one active Pokémon in the enemy team.")
@@ -239,8 +239,8 @@ class TestPokemonRLCore(unittest.TestCase):
         self.assertEqual(turn, TurnType.GENERAL)
         player_team_dump_data = self.core.battle_core.read_team_data('player')
         enemy_team_dump_data = self.core.battle_core.read_team_data('enemy')
-        playerdf = src.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
-        enemydf = src.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
+        playerdf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
+        enemydf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
         active_enemy = enemydf[enemydf['isActive'] == 1]
         self.assertEqual(len(active_enemy), 1, "There should be exactly one active Pokémon in the enemy team.")
         self.assertEqual(active_enemy.iloc[0]['id'], 11, "The active Pokémon in the enemy team should have ID 11.")
@@ -298,8 +298,8 @@ class TestPokemonRLCore(unittest.TestCase):
         self.assertEqual(turn, TurnType.GENERAL)
         player_team_dump_data = self.core.battle_core.read_team_data('player')
         enemy_team_dump_data = self.core.battle_core.read_team_data('enemy')
-        playerdf = src.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
-        enemydf = src.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
+        playerdf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(player_team_dump_data)
+        enemydf = pkmn_rl_arena.data.pokemon_data.to_pandas_team_dump_data(enemy_team_dump_data)
         active_player = playerdf[playerdf['isActive'] == 1]
         self.assertEqual(len(active_player), 1, "There should be exactly one active Pokémon in the player team.")
         self.assertEqual(active_player.iloc[0]['id'], 26, "The active Pokémon in the player team should have ID 26.")
@@ -320,7 +320,7 @@ class TestPokemonRLCore(unittest.TestCase):
 class TestGbaFunctions(unittest.TestCase):
     def setUp(self):
         self.gba = rustboyadvance_py.RustGba()
-        self.parser = src.data.parser.MapAnalyzer(MAP_PATH)
+        self.parser = pkmn_rl_arena.data.parser.MapAnalyzer(MAP_PATH)
         self.gba.load(BIOS_PATH, ROM_PATH)
     
     def test_read_u32(self):

@@ -2,13 +2,13 @@ import sys
 import os
 import random
 import time
-from src.env.core import PokemonRLCore, TurnType
+from pkmn_rl_arena.env.core import PokemonRLCore, TurnType
 import rustboyadvance_py
-import src.data.parser
-import src.data.pokemon_data
+import pkmn_rl_arena.data.parser
+import pkmn_rl_arena.data.pokemon_data
 
 STEPS = 50
-from src import ROM_PATH, BIOS_PATH, MAP_PATH
+from pkmn_rl_arena import ROM_PATH, BIOS_PATH, MAP_PATH
 
 class Benchmark:
     def __init__(self):
