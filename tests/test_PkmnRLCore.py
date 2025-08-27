@@ -1,4 +1,5 @@
-from pkmn_rl_arena.env.core import PokemonRLCore, TurnType
+from pkmn_rl_arena.env.pokemon_rl_core import PokemonRLCore
+from pkmn_rl_arena.env.battle_state import TurnType
 import pkmn_rl_arena.data.parser
 import pkmn_rl_arena.data.pokemon_data
 
