@@ -1,4 +1,4 @@
-# rl_new_pokemon_ai
+# PkmnRLArena
 
 Reinforcement learning environment and tools for Pokémon Emerald : 
     - Modified Emulator to have python librairy 
