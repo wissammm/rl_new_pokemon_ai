@@ -719,6 +719,9 @@ class TestPokemonRLCore(unittest.TestCase):
     #     # # Test all moves
     #     pass
 
+    def test_observation_space(self):
+        pass 
+
 
 if __name__ == "__main__":
     unittest.main()
