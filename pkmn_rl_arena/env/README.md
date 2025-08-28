@@ -18,47 +18,36 @@ important files : battle.h
 modifier list tests à lancer dans env/test.py
 
 # PKMN DESCRITPION
-Pokemons are described in 35 values by the game : 
-|IDX | value                                    |
-|----|------------------------------------------|
-| 1  | PKMN_MOVES                               | 
-| 2  | IS_ACTIVE                                | 
-| 3  | SPECIES                                  | 
-| 4  | STATS                                    |
-| 5  |   ATK                                    | 
-| 6  |   DEF                                    | 
-| 7  |   SPEED                                  | 
-| 8  |   SPATK                                  | 
-| 9  |   SPDEF                                  | 
-| 10 | ABILITY                                  | 
-| 11 | ABILITY(placeholder)                     | 
-| 12 | SPECIE_1 (deduced from SPECIES attribute)| 
-| 13 | SPECIE_2 (deduced from SPECIES attribute)| 
-|    | STATUS                                   | 
-| 14 |   HP                                     | 
-| 15 |   LEVEL                                  | 
-| 16 |   FRIENDSHIP                             | 
-| 17 |   MAX_HP                                 | 
-| 18 |   HELD_ITEM                              | 
-| 19 |   PP_BONUSES                             |
-| 20 |   PERSONALITY                            | 
-| 21 |   STATUS_1                               | 
-| 22 |   STATUS_2                               | 
-| 23 |   STATUS_3                               | 
-|    | MOVE_1                                   |
-| 24 |   ID                                     | 
-| 25 |   PP                                     | 
-|    | MOVE_2                                   |
-| 26 |   ID                                     | 
-| 27 |   PP                                     | 
-|    | MOVE_3                                   |
-| 28 |   ID                                     | 
-| 29 |   PP                                     | 
-|    | MOVE_4                                   |
-| 30 |   ID                                     | 
-| 31 |   PP                                     | 
+Pokemons are described in 28 values by the game : 
+1 (dst[0])  | species (MON_DATA_SPECIES)
+2 (dst[1])  | isActive (0/1)
+3 (dst[2])  | attack (MON_DATA_ATK)
+4 (dst[3])  | defense (MON_DATA_DEF)
+5 (dst[4])  | speed (MON_DATA_SPEED)
+6 (dst[5])  | special attack (MON_DATA_SPATK)
+7 (dst[6])  | special defense (MON_DATA_SPDEF)
+8 (dst[7])  | ability number (MON_DATA_ABILITY_NUM)
+9 (dst[8])  | type1 (from species)
+10 (dst[9]) | type2 (from species)
+11 (dst[10])| current HP (MON_DATA_HP)
+12 (dst[11])| level (MON_DATA_LEVEL)
+13 (dst[12])| friendship (MON_DATA_FRIENDSHIP)
+14 (dst[13])| max HP (MON_DATA_MAX_HP)
+15 (dst[14])| held item (MON_DATA_HELD_ITEM)
+16 (dst[15])| PP bonuses (MON_DATA_PP_BONUSES)
+17 (dst[16])| personality (MON_DATA_PERSONALITY)
+18 (dst[17])| status (MON_DATA_STATUS)
+19 (dst[18])| status2 (reserved / currently 0)
+20 (dst[19])| status3 (reserved / currently 0)
+21 (dst[20])| move1 id (MON_DATA_MOVE1)
+22 (dst[21])| move1 pp (MON_DATA_PP1)
+23 (dst[22])| move2 id (MON_DATA_MOVE2)
+24 (dst[23])| move2 pp (MON_DATA_PP2)
+25 (dst[24])| move3 id (MON_DATA_MOVE3)
+26 (dst[25])| move3 pp (MON_DATA_PP3)
+27 (dst[26])| move4 id (MON_DATA_MOVE4)
+28 (dst[27])| move4 pp (MON_DATA_PP4)
 
-                          
 
 
 
