@@ -115,14 +115,14 @@ class Arena(AECEnv):
 
         # create new teams
         teams = {
-            "player": self.team_factory.create_random_team(self.core),
-            "ennemy": self.team_factory.create_random_team(self.core),
+            "player": self.team_factory.create_random_team(),
+            "ennemy": self.team_factory.create_random_team(),
         }
         self.core.write_team_data(teams)
 
         # Advance to first turn to  get initial observations
         self.core.advance_to_next_turn()
-        observations = self.observation_manager.get_observations()
+        observations = self.observation_factory.from_game()
 
         # clean rendering
         self.console.clear()
@@ -132,7 +132,7 @@ class Arena(AECEnv):
 
         return observations, infos
 
-    def step(self, actions: Dict[str, int]):
+    def step(self, actions: Optional[Dict[str, int]]):
         """
         step(action) takes in an action for the current agent (specified by
         agent_selection) and needs to update
@@ -153,6 +153,10 @@ class Arena(AECEnv):
             done: Whether the episode is finished
             info: Additional information
         """
+        # If a user passes in actions with no agents, then just return empty observations, etc.
+        if not actions:
+            self.agents = []
+            return {}, {}, {}, {}, {}
 
         # Get dummy infos (not used in this example)
         # Validate actions
@@ -162,7 +166,6 @@ class Arena(AECEnv):
 
         # Write actions
         self.action_manager.write_actions(self.battle_state.current_turn, actions)
-        self.core.clear_stop_condition(self.battle_state.current_turn)
         self.battle_state.current_turn = self.core.advance_to_next_turn()
 
         # Check termination conditions
